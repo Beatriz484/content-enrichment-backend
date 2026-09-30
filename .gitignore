@@ -1,0 +1,14 @@
+# IDEs
+.idea/
+.vscode/
+
+# Python / Virtual Environment
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+
+# Logs y Archivos de Salida
+logs/*.log
+output/
