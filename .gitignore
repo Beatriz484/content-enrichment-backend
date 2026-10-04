@@ -12,3 +12,5 @@ env/
 # Logs y Archivos de Salida
 logs/*.log
 output/
+# Variables de entorno
+.env

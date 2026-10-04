@@ -1,1 +1,5 @@
 pre-commit
+openai
+python-dotenv
+pytest
+pytest-mock
