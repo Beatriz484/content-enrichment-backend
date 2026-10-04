@@ -1,45 +1,59 @@
+import logging
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
 load_dotenv()
 
+# Logger setup matching system flow specifications
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("[%(levelname)s] %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
 
 class AiContentEnricher:
-    """Clase responsable de enriquecer y resumir contenido mediante OpenAI."""
+    """Service responsible for enriching and summarizing text using AI completions."""
 
-    def __init__(self, api_key: str | None = None) -> None:
-        """Inicializa el cliente de OpenAI validando la presencia de la API key."""
+    def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
+        """Initialize the OpenAI-compatible client validating credentials."""
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
 
         if not self.api_key:
             raise ValueError(
-                "No se encontró la clave de API de OpenAI. "
-                "Asegúrate de configurarla en el archivo .env o pasarla al constructor."
+                "API key not found. Ensure it is configured in .env or passed to constructor."
             )
 
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url,
+        )
 
-    def _es_texto_valido(self, texto: str | None) -> bool:
-        """Comprueba si el texto de entrada contiene información válida."""
-        if not texto or not isinstance(texto, str):
+    def _is_valid_text(self, text: str | None) -> bool:
+        """Check whether input text contains non-empty string content."""
+        if not text or not isinstance(text, str):
             return False
-        return bool(texto.strip())
+        return bool(text.strip())
 
-    def _ajustar_longitud(self, texto: str, max_caracteres: int = 10000) -> str:
-        """Recorta el texto a un tamaño seguro si supera el límite establecido."""
-        if len(texto) > max_caracteres:
-            return texto[:max_caracteres].strip()
-        return texto
+    def _adjust_length(self, text: str, max_characters: int = 10000) -> str:
+        """Truncate text safely if it exceeds max allowed character length."""
+        if len(text) > max_characters:
+            return text[:max_characters].strip()
+        return text
 
-    def enriquecer_contenido(self, texto: str, modelo: str = "gpt-4o-mini") -> str:
-        """Enriquece el contenido proporcionado utilizando la API de OpenAI."""
-        if not self._es_texto_valido(texto):
-            return texto
+    def enrich_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
+        """Enrich given content using AI models."""
+        if not self._is_valid_text(text):
+            logger.warning("Memoria vacía")
+            return text
 
-        texto_preparado = self._ajustar_longitud(texto)
+        prepared_text = self._adjust_length(text)
 
-        prompt_sistema = (
+        system_prompt = (
             "Eres un asistente educativo especializado en investigación y síntesis académica. "
             "Tu tarea es enriquecer el contenido proporcionado: amplía los conceptos clave, "
             "añade contexto histórico o técnico relevante y organiza la información con claridad, "
@@ -47,42 +61,55 @@ class AiContentEnricher:
         )
 
         try:
-            respuesta = self.client.chat.completions.create(
-                model=modelo,
+            response = self.client.chat.completions.create(
+                model=model,
                 messages=[
-                    {"role": "system", "content": prompt_sistema},
-                    {"role": "user", "content": f"Contenido a enriquecer:\n\n{texto_preparado}"},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Contenido a enriquecer:\n\n{prepared_text}"},
                 ],
                 temperature=0.7,
             )
-            contenido_enriquecido = respuesta.choices[0].message.content
-            return contenido_enriquecido.strip() if contenido_enriquecido else texto
+            enriched_content = response.choices[0].message.content
+            if enriched_content:
+                logger.info("IA respondió con éxito")
+                return enriched_content.strip()
+
+            logger.warning("IA no disponible")
+            return text
         except Exception:
-            return texto
+            logger.warning("IA no disponible")
+            return text
 
-    def resumir_contenido(self, texto: str, modelo: str = "gpt-4o-mini") -> str:
-        """Genera un resumen estructurado del contenido proporcionado."""
-        if not self._es_texto_valido(texto):
-            return texto
+    def summarize_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
+        """Generate structured educational summary from input text."""
+        if not self._is_valid_text(text):
+            logger.warning("Memoria vacía")
+            return text
 
-        texto_preparado = self._ajustar_longitud(texto)
+        prepared_text = self._adjust_length(text)
 
-        prompt_sistema = (
+        system_prompt = (
             "Eres un asistente educativo especializado en síntesis de información. "
             "Tu tarea es generar un resumen conciso y estructurado del contenido proporcionado, "
             "destacando los puntos principales, definiciones clave y conclusiones esenciales."
         )
 
         try:
-            respuesta = self.client.chat.completions.create(
-                model=modelo,
+            response = self.client.chat.completions.create(
+                model=model,
                 messages=[
-                    {"role": "system", "content": prompt_sistema},
-                    {"role": "user", "content": f"Contenido a resumir:\n\n{texto_preparado}"},
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Contenido a resumir:\n\n{prepared_text}"},
                 ],
                 temperature=0.5,
             )
-            resumen = respuesta.choices[0].message.content
-            return resumen.strip() if resumen else texto
+            summary = response.choices[0].message.content
+            if summary:
+                logger.info("IA respondió con éxito")
+                return summary.strip()
+
+            logger.warning("IA no disponible")
+            return text
         except Exception:
-            return texto
+            logger.warning("IA no disponible")
+            return text
