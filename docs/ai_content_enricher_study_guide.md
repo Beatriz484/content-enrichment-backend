@@ -30,25 +30,47 @@ Esta documentación recopila de manera integral la arquitectura, diseño, implem
 ## 3. Arquitectura del Módulo y Diagrama de Flujo
 
 ### Gráfico del Flujo Lógico
-A continuación se ilustra el flujo de decisiones implementado en el módulo:
 
-![Diagrama de Flujo del Proceso](flowchart.png)
-
-### Lógica de Control del Diagrama
-1. **Entrada de texto:** El sistema recibe el texto base en memoria.
-2. **Validación:** Comprueba si el texto contiene caracteres válidos; si está vacío, emite el log `[WARNING] Memoria vacía` y retorna el texto original.
-3. **Ajuste de longitud:** Si el texto supera los 10.000 caracteres, lo recorta de manera segura.
-4. **Llamada al LLM:** Envía la petición a la API de IA.
-   * **Caso exitoso:** Emite el log `[INFO] IA respondió con éxito` y presenta la respuesta.
-   * **Caso fallido:** Captura la excepción, emite `[WARNING] IA no disponible` y retorna el texto original sin romper la aplicación.
-5. **Decisión interactiva:** El usuario elige si conserva la versión generada por la IA (Opción 1) o la original (Opción 2), persistiendo la selección en memoria para el resto del pipeline.
-
----
-
+```mermaid
+flowchart TD
+    Start([Inicio: Enriquecer con IA]) --> TakeMem[/El sistema toma el texto guardado en memoria/]
+    
+    TakeMem --> CheckEmpty{¿La memoria esta vacia?}
+    
+    CheckEmpty -- Si --> LogEmpty[Log: Memoria vacia]
+    LogEmpty --> ReturnOrig[Devolver el texto original sin cambios]
+    
+    CheckEmpty -- No --> CheckLen{¿El texto es demasiado largo y supera el limite de lectura de la IA?}
+    
+    CheckLen -- Si --> Trim[El sistema recorta el texto a un tamaño seguro]
+    Trim --> SendAI[El sistema envia el texto a la IA]
+    CheckLen -- No --> SendAI
+    
+    SendAI --> CheckSuccess{¿La IA respondio correctamente?}
+    
+    CheckSuccess -- Servidor caido --> LogFail[Log: IA no disponible]
+    LogFail --> ReturnOrig
+    
+    CheckSuccess -- Exito --> Recv[Recibe el texto ampliado hasta 10000 caracteres]
+    
+    Recv --> LogSuccess[Log: IA respondio con exito]
+    Recv --> Pause[Pausa: Presiona ENTER para continuar]
+    
+    Pause --> AskUser[/El sistema pregunta al usuario qué version conservar/]
+    LogSuccess --> AskUser
+    
+    AskUser --> Choice{¿Que eligio el usuario?}
+    
+    Choice -- Opcion 1 --> KeepAI[Se queda con el texto mejorado por IA]
+    Choice -- Opcion 2 --> KeepOrig[Se queda con el texto original]
+    
+    KeepAI --> FinalReady([Texto listo en memoria])
+    KeepOrig --> FinalReady
+    ReturnOrig --> FinalReady
+```
 ## 4. Implementación del Código Productivo
 
 ### Archivo: `src/enricher.py`
-Se codificó utilizando Python 3, tipado estático opcional (`type hints`), gestión segura de credenciales mediante variables de entorno y convención estándar en inglés y `snake_case`:
 
 ```python
 import logging
@@ -166,62 +188,75 @@ class AiContentEnricher:
         except Exception:
             logger.warning("IA no disponible")
             return text
+        ```
 ```
-5. Auditoría de Buenas Prácticas: Desacoplamiento y Cero Hardcoding
+---
+# 5. Auditoría de Buenas Prácticas: Desacoplamiento y Cero Hardcoding
 Uno de los pilares de este desarrollo es garantizar que ningún dato crítico o de negocio quede acoplado en el código:
-1. En el módulo productivo (src/enricher.py)
+## 1. En el módulo productivo (src/enricher.py)
 Credenciales 100% dinámicas: No existen claves de API ni URLs expuestas en el código fuente. Se recuperan en tiempo de ejecución desde variables de entorno con os.getenv().
 
-Inyección de dependencias: La clase AiContentEnricher admite parámetros opcionales (api_key, base_url) en su constructor __init__, permitiendo conectarse a diferentes proveedores sin modificar su código.
+2. Inyección de dependencias: La clase AiContentEnricher admite parámetros opcionales (api_key, base_url) en su constructor __init__, permitiendo conectarse a diferentes proveedores sin modificar su código.
 
-Modelo configurable: El parámetro model dispone de un valor predeterminado funcional ("qwen/qwen3.8-27b"), pero puede sobreescribirse en cada llamada al método si se requiere otro modelo.
+3. Modelo configurable: El parámetro model dispone de un valor predeterminado funcional ("qwen/qwen3.8-27b"), pero puede sobreescribirse en cada llamada al método si se requiere otro modelo.
 
-Límites parametrizables: El límite de seguridad de caracteres cuenta con un valor por omisión (max_characters=10000) ajustable según las necesidades de la capa superior.
+4. Límites parametrizables: El límite de seguridad de caracteres cuenta con un valor por omisión (max_characters=10000) ajustable según las necesidades de la capa superior.
 
-2. En el script de demostración interactiva (examples/demo_enricher_flow.py)
+## 2 . En el script de demostración interactiva (examples/demo_enricher_flow.py)
 No contiene temas fijos ni textos precargados: solicita dinámicamente el concepto al usuario mediante input() por consola con validación de no vacíos.
 
-3. En la suite de pruebas (tests/test_enricher.py)
+## 3. En la suite de pruebas (tests/test_enricher.py)
 Emplea cadenas ficticias para claves de prueba ("sk-fake-test-key") y respuestas simuladas ("Texto enriquecido por IA"), aislándose estrictamente de llamadas reales a la red mediante mocks.
 
-6. Configuración de Entorno e Integración con Groq Cloud
+# 6. Configuración de Entorno e Integración con Groq Cloud
 Para dotar al sistema de respuestas de IA en tiempo real sin incurrir en costes, se integró el proveedor Groq a través de variables de entorno:
 Archivo .env
+```
 OPENAI_API_KEY=gsk_**************************************
 OPENAI_BASE_URL=[https://api.groq.com/openai/v1](https://api.groq.com/openai/v1)
+```
 Modelo seleccionado: Se configuró qwen/qwen3.8-27b, el cual cuenta con capacidades avanzadas de síntesis didáctica y estructuración formal.
 
-7. Suite de Pruebas Unitarias Automatizadas
+# 7. Suite de Pruebas Unitarias Automatizadas
 
 Archivo: tests/test_enricher.py
 Se implementó una batería de 8 tests unitarios con pytest y unittest.mock para verificar de forma aislada e instantánea todos los caminos de ejecución:
 
-test_initialization_without_key: Comprueba que se lance ValueError si falta la clave de API.
+## 1.test_initialization_without_key:
+Comprueba que se lance ValueError si falta la clave de API.
 
-test_is_valid_text: Verifica que cadenas vacías o con solo espacios no sean procesadas.
+## 2.test_is_valid_text:
+Verifica que cadenas vacías o con solo espacios no sean procesadas.
 
-test_adjust_length: Comprueba que textos extensos se recorten estrictamente al límite de seguridad (10.000 caracteres).
+## 3.test_adjust_length:
+Comprueba que textos extensos se recorten estrictamente al límite de seguridad (10.000 caracteres).
 
-test_enrich_content_invalid_text: Garantiza que entradas inválidas devuelvan el texto original.
+## 4.test_enrich_content_invalid_text:
+Garantiza que entradas inválidas devuelvan el texto original.
 
-test_enrich_content_success: Valida mediante un mock que la respuesta enriquecida sea extraída y devuelta con éxito.
+## 5.test_enrich_content_success: 
+Valida mediante un mock que la respuesta enriquecida sea extraída y devuelta con éxito.
 
-test_enrich_content_fallback_error: Simula un error de red 500 y comprueba que se active la degradación elegante devolviendo el texto original.
+## 6.test_enrich_content_fallback_error:
+Simula un error de red 500 y comprueba que se active la degradación elegante devolviendo el texto original.
 
-test_summarize_content_success: Comprueba la generación y retorno de resúmenes estructurados.
+## 7.test_summarize_content_success: 
+Comprueba la generación y retorno de resúmenes estructurados.
 
-test_summarize_content_fallback_error: Comprueba la degradación elegante en el método de resumen ante caídas de la API.
+## 8.test_summarize_content_fallback_error: 
+Comprueba la degradación elegante en el método de resumen ante caídas de la API.
 
 Resultado de ejecución:
-
+```
 python -m pytest -v
 ============================= 8 passed in 1.67s =============================
+```
 (Todos los tests aprobados al 100%)[cite: 2].
 
-8. Demostración Interactiva en Vivo (Live Demo)
+# 8. Demostración Interactiva en Vivo (Live Demo)
 Para la defensa técnica del proyecto ante el equipo y evaluadores, se estructuró un script específico dentro de la carpeta examples/ que solicita el texto por consola de forma dinámica:
 Archivo: examples/demo_enricher_flow.py
-
+```
 import sys
 from pathlib import Path
 
@@ -281,29 +316,39 @@ def run_manual_flow():
 
 if __name__ == "__main__":
     run_manual_flow()
-
-9. Registro de Commits y Control de Versiones
+```
+# 9. Registro de Commits y Control de Versiones
 
 Todo el proceso de desarrollo en la rama feature/aiContentEnricher fue registrado con trazabilidad estricta bajo el estándar Conventional Commits:   
-
+```
 test: add unit tests with mocks for enricher module (aa2c720)[cite: 1]
 Creación de tests/test_enricher.py cubriendo validaciones, recortes, llamadas simuladas y tolerancia a fallos[cite: 1].
-
+```
+```
 feat: add interactive flow demo script and refactor enricher methods (c066a6a)
+```
+```
 Refactorización integral del código a inglés técnico y nomenclatura snake_case.
+```
+```
 Incorporación de manejadores de logging según estados de flujo ([INFO] y [WARNING]).
+```
+```
 Creación del directorio examples/ y adición inicial de la demo.
-
+```
+```
 chore: remove redundant manual test file from root (1efd670
 Limpieza del archivo temporal duplicado en la raíz para mantener la estructura del repositorio ordenada y limpia
-
+```
+```
 feat: make demo enricher script dynamic with interactive terminal prompt
 Adaptación del script de demo para capturar el concepto en vivo por consola sin hardcoding.
-
+```
+```
 docs: add comprehensive study guide and technical architecture for aiContentEnricher
 Incorporación del manual técnico completo con diagrama de flujo integrado.
-
-10. Comandos de Referencia
+```
+## 10. Comandos de Referencia
 Ejecutar todos los tests unitarios:
 ```
 python -m pytest -v
