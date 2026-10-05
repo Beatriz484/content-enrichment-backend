@@ -17,3 +17,5 @@ pytest-cov==7.0.0
 reportlab==5.0.1
 requests==2.32.5
 virtualenv==21.14.1
+openai==3.24.0
+pytest-mock==3.16.0

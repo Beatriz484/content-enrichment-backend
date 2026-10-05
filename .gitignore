@@ -8,6 +8,8 @@ __pycache__/
 venv/
 .venv/
 env/
+.env
+
 
 # Logs y Archivos de Salida
 logs/*.log
