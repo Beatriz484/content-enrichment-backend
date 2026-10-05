@@ -68,6 +68,7 @@ class AiContentEnricher:
                     {"role": "user", "content": f"Contenido a enriquecer:\n\n{prepared_text}"},
                 ],
                 temperature=0.7,
+                max_tokens=4096,  # Permite que desarrolle el texto entero sin cortarse
             )
             enriched_content = response.choices[0].message.content
             if enriched_content:
@@ -76,8 +77,8 @@ class AiContentEnricher:
 
             logger.warning("IA no disponible")
             return text
-        except Exception:
-            logger.warning("IA no disponible")
+        except Exception as e:
+            logger.warning(f"IA no disponible: {e}")
             return text
 
     def summarize_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
@@ -102,14 +103,15 @@ class AiContentEnricher:
                     {"role": "user", "content": f"Contenido a resumir:\n\n{prepared_text}"},
                 ],
                 temperature=0.5,
+                max_tokens=1500,
             )
-            summary = response.choices[0].message.content
-            if summary:
+            summary_content = response.choices[0].message.content
+            if summary_content:
                 logger.info("IA respondió con éxito")
-                return summary.strip()
+                return summary_content.strip()
 
             logger.warning("IA no disponible")
             return text
-        except Exception:
-            logger.warning("IA no disponible")
+        except Exception as e:
+            logger.warning(f"IA no disponible: {e}")
             return text
