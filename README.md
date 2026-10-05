@@ -21,27 +21,47 @@ El proyecto sigue una arquitectura modular y orientada a objetos (POO) alineada 
 
 ```text
 content-enrichment-backend/
-├── docs/                     # Diagramas (flowchart.png) y escenarios Gherkin (.feature)
+├── docs/                         # Guías de estudio, diagramas y escenarios Gherkin
+│   ├── export_module_study_guide.md      # Guía del módulo de exportación (TXT / PDF)
+│   ├── ai_content_enricher_study_guide.md # Guía del módulo AiContentEnricher
+│   ├── historias_usuario.md
 │   ├── flowchart.png
+│   ├── img.png
 │   └── tests.feature
-├── src/                      # Código fuente principal
+├── src/                          # Código fuente principal
 │   ├── __init__.py
-│   ├── main.py               # Punto de entrada de la aplicación CLI
-│   ├── scraper.py            # Extracción de datos desde Wikipedia
-│   ├── enricher.py           # Enriquecimiento y resúmenes con IA
-│   ├── translator.py         # Integración con la API de traducción
-│   └── exporter.py           # Generación de archivos en PDF y TXT
-├── tests/                    # Suite de pruebas automáticas (100% Cobertura)
+│   ├── main.py                   # Punto de entrada de la aplicación CLI
+│   ├── scraper.py                # Extracción de datos desde Wikipedia
+│   ├── enricher.py               # Enriquecimiento y resúmenes con IA
+│   ├── translator.py             # Integración con la API de traducción
+│   └── exporter/                 # Paquete de exportación (TXT / PDF)
+│       ├── __init__.py           # Expone DocumentExporter
+│       ├── document_exporter.py  # Orquestador de la exportación
+│       ├── validators.py         # Validación de entradas y saneo de nombres
+│       ├── txt_exporter.py       # Generación de TXT (UTF-8)
+│       └── pdf_exporter.py       # Generación de PDF (ReportLab)
+├── tests/                        # Suite de pruebas automáticas (100% Cobertura)
 │   ├── __init__.py
 │   ├── test_scraper.py
 │   ├── test_enricher.py
 │   ├── test_translator.py
-│   └── test_exporter.py
-├── .gitignore                # Exclusión de archivos temporales y entornos
-├── .pre-commit-config.yaml   # Reglas de validación para mensajes de commit
-├── requirements.txt          # Dependencias del proyecto
-└── README.md                 # Documentación principal
+│   └── test_exporter/            # Tests del módulo de exportación (13 tests)
+│       ├── __init__.py
+│       ├── test_document_exporter.py
+│       ├── test_validators.py
+│       ├── test_txt_exporter.py
+│       └── test_pdf_exporter.py
+├── demo_exporter.py              # Demo por consola del módulo de exportación
+├── .gitignore                    # Exclusión de archivos temporales y entornos
+├── .pre-commit-config.yaml       # Reglas de validación para mensajes de commit
+├── requirements.txt              # Dependencias del proyecto
+└── README.md                     # Documentación principal
 ```
+
+## 📚 Documentación del Proyecto
+
+- 📤 [Guía del Módulo de Exportación (TXT / PDF)](docs/export_module_study_guide.md)
+- 🤖 [Guía del Módulo AiContentEnricher](docs/ai_content_enricher_study_guide.md)
 
 ## ⚙️ Instalación y Configuración Local
 Sigue estos pasos para clonar e instalar el proyecto en tu máquina local:
