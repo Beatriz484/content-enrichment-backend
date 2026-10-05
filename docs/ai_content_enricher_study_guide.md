@@ -368,3 +368,59 @@ git push origin feature/aiContentEnricher
 ---
 
 
+---
+
+## 🧪 Criterios de Aceptación y Escenarios BDD (Gherkin)
+
+Para validar que el módulo cumple con todos los requerimientos funcionales y de resiliencia esperados por el equipo, el comportamiento del sistema se estructuró bajo especificaciones Gherkin, respaldadas al 100% por la suite de pruebas unitarias automatizadas (`tests/test_enricher.py`):
+
+### Escenario 1: Enriquecimiento pedagógico exitoso
+```gherkin
+Característica: Enriquecimiento pedagógico de contenido
+
+  Escenario: La IA amplía correctamente un texto de Wikipedia
+    Dado que el servicio "AiContentEnricher" dispone de credenciales válidas
+    Y recibe un texto válido sobre un concepto de estudio
+    Cuando el sistema solicita el enriquecimiento al modelo de lenguaje
+    Entonces el servicio devuelve el contenido ampliado con explicaciones didácticas
+    Y emite un log informativo de éxito en la consola
+```
+Validación técnica: Cubierto en test_enrich_content_success con respuesta mockeada.
+
+### Escenario 2: Generación de resumen estructurado
+
+```
+Escenario: La IA sintetiza el contenido en un resumen didáctico
+    Dado que el módulo recibe un artículo o sección extensa
+    Cuando solicita la función de resumen
+    Entonces la IA devuelve un párrafo conciso con las ideas clave destacadas
+    Y preserva la coherencia y fidelidad del contenido original
+
+```
+### Escenario 4: Validación de entradas vacías o no válidas
+
+```
+Escenario: Recepción de contenido nulo o compuesto únicamente por espacios
+    Dado que el módulo recibe una entrada de texto vacía
+    Cuando se ejecuta el filtro preventivo de validación
+    Entonces emite el aviso "[WARNING] Memoria vacía"
+    Y evita realizar llamadas innecesarias a la red o consumo de API
+```
+Validación técnica:
+Cubierto en test_enrich_content_empty_text.
+
+### Escenario 5: Decisión interactiva de persistencia en memoria (Live Demo)
+
+```
+Escenario: El usuario elige en consola la versión final a procesar
+    Dado que el usuario visualiza en terminal la comparativa de textos
+    Cuando selecciona conservar la versión enriquecida o la original
+    Entonces la variable de memoria del sistema almacena la opción elegida
+    Y confirma en pantalla que el texto queda listo para las siguientes fases
+```
+Validación técnica:
+Verificado en el script ejecutable examples/demo_enricher_flow.py.
+
+
+
+
