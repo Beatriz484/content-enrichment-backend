@@ -1,7 +1,7 @@
 """Tests de la CLI (``src/main.py``) con todas las dependencias simuladas."""
 from unittest.mock import MagicMock, patch
 
-from src.main import _confirmar, _pedir_formato, _preguntar_texto, main
+from src.main import _configurar_consola, _confirmar, _pedir_formato, _preguntar_texto, main
 from src.pipeline import ContentPipeline
 
 
@@ -33,6 +33,27 @@ def _ejecutar_cli(respuestas, export_resultado=(True, "output/informe_test.txt")
 
 
 # --- Helpers de interacción -------------------------------------------------
+
+def test_configurar_consola_es_resiliente_a_los_streams():
+    """La CLI no debe fallar por codificación ni si un stream no soporta reconfigure."""
+    stream = MagicMock()
+    stream.reconfigure.side_effect = ValueError("stream cerrado")
+
+    with patch("src.main.sys.stdout", stream), \
+            patch("src.main.sys.stderr", stream), \
+            patch("src.main.sys.stdin", stream):
+        _configurar_consola()
+
+    assert stream.reconfigure.called
+
+
+def test_configurar_consola_fuerza_utf8():
+    """La salida se reconfigura a UTF-8 para soportar emojis y tildes."""
+    with patch("src.main.sys.stdout") as stdout:
+        _configurar_consola()
+
+    stdout.reconfigure.assert_called_with(encoding="utf-8", errors="replace")
+
 
 def test_preguntar_texto_repite_hasta_recibir_valor():
     with patch("builtins.input", side_effect=["", "   ", "tema final"]):

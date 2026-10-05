@@ -5,6 +5,7 @@ Esta capa solo se preocupa de mostrar resultados y pedir decisiones al usuario;
 toda la lógica de negocio vive en ``src/pipeline.py``.
 """
 import logging
+import sys
 from typing import Optional
 
 from .enricher import AiContentEnricher
@@ -147,7 +148,32 @@ def _ejecutar() -> int:
     return 0 if resultado else 1
 
 
+def _configurar_consola() -> None:
+    """Evita que la CLI se rompa al redirigir la salida en Windows.
+
+    En Windows, cuando stdout/stdin van por tubería (no por consola), Python
+    usa la codificación regional (p. ej. cp1252) y los caracteres del interfaz
+    (➤, 🟢, tildes) lanzan UnicodeEncodeError. Se fuerza UTF-8 con reemplazo
+    seguro para que la aplicación nunca falle por codificación.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+    stdin_reconfigure = getattr(sys.stdin, "reconfigure", None)
+    if stdin_reconfigure:
+        try:
+            stdin_reconfigure(errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 def main() -> int:
+    _configurar_consola()
     setup_logging()
     try:
         return _ejecutar()
