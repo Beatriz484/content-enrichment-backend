@@ -421,6 +421,62 @@ Escenario: El usuario elige en consola la versión final a procesar
 Validación técnica:
 Verificado en el script ejecutable examples/demo_enricher_flow.py.
 
+## Configuración Técnica y Resiliencia del Módulo AI
+
+### 1. Proveedor e Inferencia Compatible (Groq / OpenAI API)
+El módulo `AiContentEnricher` utiliza el cliente de OpenAI configurado contra el endpoint de inferencia de Groq mediante variables de entorno:
+- `OPENAI_BASE_URL`: `https://api.groq.com/openai/v1`
+- `OPENAI_API_KEY`: Clave de acceso a Groq.
+
+#### Modelos de Texto Habilitados vs. Especializados
+El catálogo de modelos disponibles varía según el nivel de suscripción y cambios de API. Se debe diferenciar entre modelos aptos para generación/síntesis textual y modelos de tareas específicas:
+- **Aptos para Chat y Enriquecimiento:**
+  - `qwen/qwen3.8-27b` (Modelo predeterminado por su capacidad didáctica y estructuración).
+  - `openai/gpt-oss-120b` (Alternativa de alto rendimiento para textos extensos).
+  - `openai/gpt-oss-20b` (Alternativa ligera y de baja latencia).
+- **No Aptos para este Flujo:**
+  - `whisper-large-v3` / `whisper-large-v3-turbo` (Exclusivos para transcripción de audio).
+  - `meta-llama/llama-prompt-guard-*` y modelos `safeguard` (Filtros de moderación y seguridad, no devuelven contenido enriquecido).
+
+> **Herramienta de Diagnóstico (`check_models.py`):**  
+> Se incluye un script auxiliar en la raíz para consultar en tiempo real los identificadores exactos de los modelos habilitados para la clave en uso:
+> ```bash
+> python check_models.py
+> ```
+
+---
+
+### 2. Prevención de Truncamiento (`max_tokens`)
+Para evitar cortes abruptos en respuestas complejas (por ejemplo, en secciones de conclusiones o esquemas analíticos largos), se especifica de forma explícita el parámetro `max_tokens` en las llamadas a `chat.completions.create`:
+- **`enrich_content`**: `max_tokens=4096` para permitir un desarrollo exhaustivo y contextualizado.
+- **`summarize_content`**: `max_tokens=1500` para garantizar resúmenes concisos pero completos.
+
+---
+
+### 3. Arquitectura de Resiliencia (*Graceful Degradation*)
+El servicio implementa una estrategia de tolerancia a fallos ante caídas de red, problemas de cuota o errores 404 de modelo:
+1. **Validación Previa:** Comprueba que el texto de entrada no esté vacío ni compuesto únicamente de espacios en blanco mediante `_is_valid_text()`.
+2. **Control de Longitud:** Limita el tamaño de entrada mediante `_adjust_length()` para no saturar la ventana de contexto.
+3. **Fallback Automático:** En caso de excepción durante la petición HTTP, el error se captura, se registra con nivel `WARNING` en el logger del sistema y la función devuelve el texto original intacto, garantizando que el flujo de la aplicación no se detenga.
+
+---
+
+### 4. Guía de Ejecución de Pruebas
+Para evitar problemas de resolución de rutas (`ModuleNotFoundError: No module named 'src'`) al ejecutar la suite de pruebas unitarias y de integración desde terminales de sistema (como PowerShell o Bash):
+- **Ejecución recomendada:**
+  ```bash
+  python -m pytest
+  
+Modo detallado:
+
+```
+python -m pytest -v
+
+```
+
+
+
+
 
 
 
