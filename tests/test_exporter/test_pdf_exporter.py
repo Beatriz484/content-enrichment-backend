@@ -16,6 +16,22 @@ def test_pdf_exporter_generate_success(tmp_path):
     assert os.path.getsize(result_path) > 0
 
 
+def test_pdf_exporter_sin_ia_genera_archivo(tmp_path):
+    """El PDF también se genera cuando la IA no actuó (título honesto)."""
+    output_file = tmp_path / "test_report_no_ai.pdf"
+    texto_original = "Texto original sin tocar."
+    sample_data = {
+        "topic": "Sin IA",
+        "raw_text": texto_original,
+        "enriched_text": texto_original,
+        "translated_text": "",
+    }
+
+    result_path = PdfExporter.generate(str(output_file), sample_data)
+    assert os.path.exists(result_path)
+    assert os.path.getsize(result_path) > 0
+
+
 def test_pdf_exporter_con_resumen_genera_archivo(tmp_path):
     """El PDF se genera correctamente cuando existe la sección 4 (resumen)."""
     output_file = tmp_path / "test_report_summary.pdf"

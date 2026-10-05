@@ -110,7 +110,19 @@ def test_construir_content_data_cumple_el_contrato_del_exportador():
         "enriched_text": "Enriquecido",
         "translated_text": "Traducido",
         "summary": "Resumen",
+        "enriched_with_ai": True,
     }
+
+
+def test_construir_content_data_detecta_cuando_no_hubo_ia():
+    """Si la IA no actuó, la bandera sale en False para titulár seco y honesto."""
+    content_data = ContentPipeline.construir_content_data(
+        titulo="Python",
+        texto_original="Texto sin tocar",
+        texto_enriquecido="Texto sin tocar",
+    )
+
+    assert content_data["enriched_with_ai"] is False
 
 
 def test_construir_content_data_sin_resumen_y_sin_traduccion():

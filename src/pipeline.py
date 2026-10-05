@@ -111,6 +111,10 @@ class ContentPipeline:
     ) -> Dict[str, Any]:
         """Construye el ``content_data`` que consumen TxtExporter y PdfExporter.
 
+        Incluye la bandera ``enriched_with_ai``: la IA se consideró activa si
+        ``enriched_text`` difiere de ``raw_text``, de modo que los exportadores
+        pongan un título coherente en la sección 2.
+
         ``summary`` es opcional: si viene vacío, los exportadores omiten la
         sección 4 del informe.
         """
@@ -120,4 +124,5 @@ class ContentPipeline:
             "enriched_text": texto_enriquecido,
             "translated_text": texto_traducido,
             "summary": resumen,
+            "enriched_with_ai": texto_enriquecido != texto_original,
         }

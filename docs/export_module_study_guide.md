@@ -66,8 +66,21 @@ content_data (Dict[str, Any])
 | `enriched_text` | `str` | Contenido enriquecido por IA. |
 | `translated_text` | `str` | Contenido traducido (vacío mientras el traductor está en desarrollo). |
 | `summary` | `str` | **Opcional.** Resumen ejecutivo: si está vacío, se omite la sección 4. |
+| `enriched_with_ai` | `bool` | **Opcional.** `True` si la IA realmente enriqueció el texto. Si no viene, se infiere comparando `enriched_text` con `raw_text`. |
 
-Las cuatro primeras claves son **obligatorias**: forman el conjunto `REQUIRED_KEYS` del validador. `summary` no lo es, por lo que su ausencia no bloquea la exportación.
+Las cuatro primeras claves son **obligatorias**: forman el conjunto `REQUIRED_KEYS` del validador. `summary` y `enriched_with_ai` no lo son, por lo que su ausencia no bloquea la exportación.
+
+**Títulos coherentes:** las secciones no prometen lo que no ocurrió (ver `titles.py`):
+
+| Situación | Título de la sección 2 |
+|---|---|
+| La IA actuó | `2. CONTENIDO ENRIQUECIDO (IA)` |
+| Sin API key o fallo de IA | `2. CONTENIDO SIN ENRIQUECER (IA NO DISPONIBLE)` |
+
+| Situación | Título de la sección 3 |
+|---|---|
+| Hay texto traducido | `3. CONTENIDO TRADUCIDO` |
+| Traductor pendiente | `3. CONTENIDO TRADUCIDO (PENDIENTE)` + nota explicativa |
 
 El diccionario lo construye `ContentPipeline.construir_content_data()` (`src/pipeline.py`), que es quien alimenta al exportador en el flujo real de la CLI.
 
@@ -82,6 +95,7 @@ src/exporter/
 ├── __init__.py           # Expone DocumentExporter vía __all__
 ├── document_exporter.py  # Orquestador principal
 ├── pdf_exporter.py       # Exportación a PDF (ReportLab)
+├── titles.py             # Rótulos coherentes de cada sección del informe
 ├── txt_exporter.py       # Exportación a TXT (UTF-8 nativo)
 └── validators.py         # ExportValidator (validación + saneo)
 ```
@@ -92,8 +106,9 @@ src/exporter/
 tests/test_exporter/
 ├── __init__.py                  # Convierte la carpeta en paquete
 ├── test_document_exporter.py    # Orquestador y flujo completo (4 tests)
-├── test_pdf_exporter.py         # Generación de PDF (1 test)
-├── test_txt_exporter.py         # Generación de TXT (1 test)
+├── test_pdf_exporter.py         # Generación de PDF (4 tests)
+├── test_titles.py               # Rótulos coherentes de las secciones (7 tests)
+├── test_txt_exporter.py         # Generación de TXT (5 tests)
 └── test_validators.py           # Reglas de validación y saneo (7 tests)
 ```
 
@@ -179,11 +194,11 @@ INFORME DE INVESTIGACIÓN: {topic}
 ----------------------------------------
 {raw_text}
 
-2. CONTENIDO ENRIQUECIDO Y RESUMIDO (IA)
+2. CONTENIDO ENRIQUECIDO (IA)                ← título real de la sección
 ----------------------------------------
 {enriched_text}
 
-3. CONTENIDO TRADUCIDO
+3. CONTENIDO TRADUCIDO                       ← título real de la sección
 ----------------------------------------
 {translated_text}
 
@@ -191,8 +206,20 @@ INFORME DE INVESTIGACIÓN: {topic}
 Informe generado exitosamente por Content Enricher Backend.
 ```
 
+**Los títulos de las secciones 2 y 3 son dinámicos** y los decide `titles.py`:
+
+```text
+2. CONTENIDO ENRIQUECIDO (IA)                    ← la IA actuó
+2. CONTENIDO SIN ENRIQUECER (IA NO DISPONIBLE)   ← sin API key o fallo de IA
+
+3. CONTENIDO TRADUCIDO                           ← hay texto traducido
+3. CONTENIDO TRADUCIDO (PENDIENTE)               ← traductor aún no integrado
+                                                   (+ nota: "El módulo de traducción aún no está disponible; ...")
+```
+
 - Encabezado: `"=" * 60`.
 - Secciones numeradas separadas por `"-" * 40`.
+- Los rótulos se escriben en mayúsculas (`.upper()` sobre los títulos comunes a TXT y PDF).
 - **Sección 4 opcional**: si `content_data["summary"]` no está vacío, escribe `4. RESUMEN EJECUTIVO (IA)` antes del pie; si está vacío, el informe termina en la sección 3.
 - Pie con `"=" * 60` y mensaje final.
 - Devuelve `file_path` para que el orquestador lo reenvíe al llamador.
@@ -210,12 +237,27 @@ Clase con `@staticmethod generate(file_path, content_data) -> str` basada en Rep
 | `PdfSectionHeader` | `Heading2` | 12 pt / leading 16 | `spaceBefore=10`, `spaceAfter=6` |
 | `PdfBody` | `Normal` | 9 pt / leading 13 | `spaceAfter=10` |
 
-- Construye el `story`: título en negrita (`<b>Informe de Investigación:</b> {topic}`), un `Spacer(1, 10)` y las 3 secciones (`1. Contenido Original (Extraído)`, `2. Contenido Enriquecido y Resumido (IA)`, `3. Contenido Traducido`).
+- Construye el `story`: título en negrita (`<b>Informe de Investigación:</b> {topic}`), un `Spacer(1, 10)` y las secciones con los **mismos rótulos dinámicos** que el TXT (`1. Contenido Original (Extraído)`, `2. Contenido Enriquecido (IA)` o `2. Contenido Sin Enriquecer (IA no disponible)`, `3. Contenido Traducido` o `3. Contenido Traducido (pendiente)`).
 - Convierte saltos de línea con `.replace('\n', '<br/>')` para que ReportLab (que interpreta HTML básico en `Paragraph`) los renderice.
 - **Sección 4 opcional**: si `content_data["summary"]` no está vacío, añade `4. Resumen Ejecutivo (IA)` con el mismo estilo de sección antes de `document.build(story)`.
 - `document.build(story)` y retorno de `file_path`.
 
-### 5.5 `__init__.py`
+### 5.5 `titles.py` — Rótulos coherentes del informe
+
+Fuente única de verdad de los títulos, compartida por TXT y PDF, para que ambos formatos digan exactamente lo mismo:
+
+```python
+def ia_actuo(content_data) -> bool            # bandera enriched_with_ai o comparación de textos
+def hay_traduccion(content_data) -> bool      # hay contenido traducido real
+def titulos_del_informe(content_data) -> Dict[str, str]  # rótulo de cada sección
+NOTA_TRADUCCION_PENDIENTE                     # texto de la sección 3 pendiente
+```
+
+- **`ia_actuo()`** → usa `content_data["enriched_with_ai"]` si existe; si no, compara `enriched_text` con `raw_text` (si son iguales, la IA no llegó a actuar).
+- **`hay_traduccion()`** → `translated_text` con `.strip()`, para detectar el caso del traductor pendiente.
+- El objetivo es **coherencia**: el informe nunca afirma que algo se hizo con IA si no se hizo.
+
+### 5.6 `__init__.py`
 
 ```python
 from .document_exporter import DocumentExporter
@@ -229,7 +271,7 @@ Expone **solo** el orquestador, para que el consumidor use la API de alto nivel:
 from src.exporter import DocumentExporter
 ```
 
-### 5.6 Script de consola (`examples/demo_exporter.py`)
+### 5.7 Script de consola (`examples/demo_exporter.py`)
 
 1. Inserta la raíz del proyecto en `sys.path` para que Python reconozca el paquete `src`.
 2. Imprime el encabezado `SISTEMA DE GENERACIÓN DE INFORMES`.
@@ -244,7 +286,7 @@ from src.exporter import DocumentExporter
 
 ### 6.1 Propósito
 
-Verificar de forma **aislada** que cada capa del exportador funciona y que las regresiones se detectan automáticamente. Hoy la suite contiene **17 tests, todos en verde**.
+Verificar de forma **aislada** que cada capa del exportador funciona y que las regresiones se detectan automáticamente. Hoy la suite contiene **27 tests, todos en verde**.
 
 ### 6.2 Herramientas
 
@@ -276,23 +318,38 @@ Verificar de forma **aislada** que cada capa del exportador funciona y que las r
 | `test_export_content_pdf_success` | Flujo completo con formato `"pdf"` | `True`, la ruta termina en `informe_test.pdf` y el archivo existe |
 | `test_export_content_validation_failure` | Formato `"doc"` con `content_data = {}` | `False` + `"Error de Validación"` y **no** se crea ningún archivo |
 
-#### `test_txt_exporter.py` — 3 tests
+#### `test_txt_exporter.py` — 5 tests
 
 | Test | Escenario | Aserción |
 |------|-----------|----------|
-| `test_txt_exporter_generate_success` | Datos completos | El archivo existe y contiene: el título `INFORME DE INVESTIGACIÓN: Python Testing`, las 3 secciones (`1. CONTENIDO ORIGINAL (EXTRAÍDO)`, `2. CONTENIDO ENRIQUECIDO Y RESUMIDO (IA)`, `3. CONTENIDO TRADUCIDO`) y el texto original |
+| `test_txt_exporter_generate_success` | Datos completos | El archivo existe y contiene: el título `INFORME DE INVESTIGACIÓN: Python Testing`, las 3 secciones (`1. CONTENIDO ORIGINAL (EXTRAÍDO)`, `2. CONTENIDO ENRIQUECIDO (IA)`, `3. CONTENIDO TRADUCIDO`) y el texto original |
 | `test_txt_exporter_incluye_resumen_cuando_existe` | Datos con `summary` | Aparece `4. RESUMEN EJECUTIVO (IA)` y su contenido |
 | `test_txt_exporter_omite_resumen_si_es_vacio` | `summary: ""` | **No** aparece `4. RESUMEN` y se conserva la sección 3 |
+| `test_txt_exporter_titula_sin_ia_cuando_no_hubo_enriquecimiento` | `enriched_text == raw_text` | Aparece `2. CONTENIDO SIN ENRIQUECER (IA NO DISPONIBLE)` y **no** `2. CONTENIDO ENRIQUECIDO (IA)` |
+| `test_txt_exporter_marca_traduccion_pendiente_si_esta_vacia` | `translated_text: ""` | Aparece `3. CONTENIDO TRADUCIDO (PENDIENTE)` con la nota del módulo pendiente |
 
-#### `test_pdf_exporter.py` — 3 tests
+#### `test_pdf_exporter.py` — 4 tests
 
 | Test | Escenario | Aserción |
 |------|-----------|----------|
 | `test_pdf_exporter_generate_success` | Datos completos | El archivo existe y `os.path.getsize() > 0` (ReportLab no lanza excepciones) |
+| `test_pdf_exporter_sin_ia_genera_archivo` | `enriched_text == raw_text` y sin traducción | El PDF se construye con los títulos honestos |
 | `test_pdf_exporter_con_resumen_genera_archivo` | Datos con `summary` | El PDF se construye con la sección 4 sin errores y pesa más de 0 |
 | `test_pdf_exporter_sin_resumen_genera_archivo` | `summary: ""` | El PDF se construye omitiendo la sección 4 |
 
 > En PDF solo se verifica la existencia y el tamaño: el contenido va comprimido en el flujo del documento, así que la comprobación textual se hace sobre el TXT, que sí se lee en UTF-8.
+
+#### `test_titles.py` — 7 tests
+
+| Test | Escenario | Aserción |
+|------|-----------|----------|
+| `test_titulo_de_enriquecimiento_cuando_la_ia_actuo` | Textos distintos | `2. Contenido Enriquecido (IA)` e `ia_actuo() is True` |
+| `test_titulo_de_enriquecimiento_sin_ia` | `enriched_text == raw_text` | `2. Contenido Sin Enriquecer (IA no disponible)` |
+| `test_bandera_explicita_manda_sobre_la_comparacion` | `enriched_with_ai=False` con textos distintos | La bandera manda: `ia_actuo() is False` |
+| `test_titulo_de_traduccion_cuando_hay_contenido` | `translated_text` con contenido | `3. Contenido Traducido` |
+| `test_titulo_de_traduccion_pendiente_si_no_hay_texto` | `translated_text: ""` | `3. Contenido Traducido (pendiente)` |
+| `test_nota_de_traduccion_pendiente` | Constante `NOTA_TRADUCCION_PENDIENTE` | El texto explica que el módulo no está disponible |
+| `test_titulos_de_original_y_resumen` | Cualquier caso | Secciones 1 y 4 con su redacción fija |
 
 ### 6.4 Ejemplo de test real
 
@@ -318,14 +375,14 @@ def test_txt_exporter_generate_success(tmp_path):
         assert "INFORME DE INVESTIGACIÓN: Python Testing" in content
         assert "1. CONTENIDO ORIGINAL (EXTRAÍDO)" in content
         assert "Texto extraído de prueba." in content
-        assert "2. CONTENIDO ENRIQUECIDO Y RESUMIDO (IA)" in content
+        assert "2. CONTENIDO ENRIQUECIDO (IA)" in content
         assert "3. CONTENIDO TRADUCIDO" in content
 ```
 
 ### 6.5 Cómo ejecutar los tests
 
 ```bash
-# Toda la suite del exportador (17 tests)
+# Toda la suite del exportador (27 tests)
 pytest tests/test_exporter/ -v
 
 # Con cobertura

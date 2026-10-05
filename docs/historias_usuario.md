@@ -34,6 +34,8 @@
 - [x] Pregunta si se desea guardar, el formato (`txt`/`pdf`) y el nombre del archivo (⭐).
 - [x] Sin `OPENAI_API_KEY` el flujo continúa con el contenido original (degradación elegante).
 - [x] La lógica vive en `src/pipeline.py`; `src/main.py` solo maneja la entrada/salida del usuario.
+- [x] Los títulos de las secciones reflejan lo que realmente se hizo: la sección 2 solo dice "enriquecido (IA)" si la IA actuó, y la sección 3 avisa si la traducción está pendiente.
+- [x] La CLI no falla por codificación en Windows (entrada/salida UTF-8 con reemplazo seguro al redirigir la salida).
 - [x] Validado con `tests/test_pipeline.py` (sin red ni IA real).
 
 ### Criterios pendientes:

@@ -4,6 +4,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+from .titles import NOTA_TRADUCCION_PENDIENTE, hay_traduccion, titulos_del_informe
+
 
 class PdfExporter:
     @staticmethod
@@ -45,6 +47,7 @@ class PdfExporter:
         )
 
         story = []
+        titulos = titulos_del_informe(content_data)
 
         # Título principal
         topic = content_data.get('topic')
@@ -52,24 +55,27 @@ class PdfExporter:
         story.append(Spacer(1, 10))
 
         # Sección 1: Contenido Original
-        story.append(Paragraph("1. Contenido Original (Extraído)", section_style))
+        story.append(Paragraph(titulos["original"], section_style))
         raw_text = str(content_data.get('raw_text', '')).replace('\n', '<br/>')
         story.append(Paragraph(raw_text, body_style))
 
-        # Sección 2: IA
-        story.append(Paragraph("2. Contenido Enriquecido y Resumido (IA)", section_style))
+        # Sección 2: IA (el rótulo refleja si la IA llegó a actuar)
+        story.append(Paragraph(titulos["enriquecimiento"], section_style))
         enriched_text = str(content_data.get('enriched_text', '')).replace('\n', '<br/>')
         story.append(Paragraph(enriched_text, body_style))
 
-        # Sección 3: Traducción
-        story.append(Paragraph("3. Contenido Traducido", section_style))
-        translated_text = str(content_data.get('translated_text', '')).replace('\n', '<br/>')
-        story.append(Paragraph(translated_text, body_style))
+        # Sección 3: Traducción (con aviso si el módulo sigue pendiente)
+        story.append(Paragraph(titulos["traduccion"], section_style))
+        if hay_traduccion(content_data):
+            translated_text = str(content_data.get('translated_text', '')).replace('\n', '<br/>')
+            story.append(Paragraph(translated_text, body_style))
+        else:
+            story.append(Paragraph(NOTA_TRADUCCION_PENDIENTE, body_style))
 
         # Sección 4: Resumen ejecutivo (solo si la IA lo generó)
         summary = str(content_data.get('summary') or '').strip()
         if summary:
-            story.append(Paragraph("4. Resumen Ejecutivo (IA)", section_style))
+            story.append(Paragraph(titulos["resumen"], section_style))
             story.append(Paragraph(summary.replace('\n', '<br/>'), body_style))
 
         document.build(story)

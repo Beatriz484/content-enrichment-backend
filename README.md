@@ -40,6 +40,7 @@ content-enrichment-backend/
 │       ├── __init__.py           # Expone DocumentExporter
 │       ├── document_exporter.py  # Orquestador de la exportación
 │       ├── validators.py         # Validación de entradas y saneo de nombres
+│       ├── titles.py             # Rótulos coherentes de cada sección del informe
 │       ├── txt_exporter.py       # Generación de TXT (UTF-8)
 │       └── pdf_exporter.py       # Generación de PDF (ReportLab)
 ├── tests/                        # Suite de pruebas automáticas
