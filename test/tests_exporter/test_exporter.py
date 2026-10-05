@@ -6,7 +6,7 @@ if __name__ == "__main__":
     print("==================================================")
 
     # Inicializar orquestador
-    exporter = DocumentExporter(output_dir="output")
+    exporter = DocumentExporter(output_dir="../../output")
 
     # Solicitar datos en consola
     user_filename = input("➤ Ingrese el nombre del archivo: ").strip()
