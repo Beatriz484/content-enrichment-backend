@@ -5,14 +5,9 @@ from openai import OpenAI
 
 load_dotenv()
 
-# Logger setup matching system flow specifications
+# Los handlers (consola + archivo logs/app.log) se configuran de forma global
+# en src.logging_config.setup_logging(), que invoca src.main al arrancar.
 logger = logging.getLogger(__name__)
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter("[%(levelname)s] %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
 
 
 class AiContentEnricher:

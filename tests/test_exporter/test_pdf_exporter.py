@@ -14,3 +14,35 @@ def test_pdf_exporter_generate_success(tmp_path):
     result_path = PdfExporter.generate(str(output_file), sample_data)
     assert os.path.exists(result_path)
     assert os.path.getsize(result_path) > 0
+
+
+def test_pdf_exporter_con_resumen_genera_archivo(tmp_path):
+    """El PDF se genera correctamente cuando existe la sección 4 (resumen)."""
+    output_file = tmp_path / "test_report_summary.pdf"
+    sample_data = {
+        "topic": "ReportLab Test",
+        "raw_text": "Texto original para PDF.",
+        "enriched_text": "Resumen para PDF.",
+        "translated_text": "Translated PDF content.",
+        "summary": "Resumen ejecutivo generado por IA.",
+    }
+
+    result_path = PdfExporter.generate(str(output_file), sample_data)
+    assert os.path.exists(result_path)
+    assert os.path.getsize(result_path) > 0
+
+
+def test_pdf_exporter_sin_resumen_genera_archivo(tmp_path):
+    """El PDF también se genera sin resumen (la sección 4 se omite)."""
+    output_file = tmp_path / "test_report_no_summary.pdf"
+    sample_data = {
+        "topic": "ReportLab Test",
+        "raw_text": "Texto original para PDF.",
+        "enriched_text": "Resumen para PDF.",
+        "translated_text": "Translated PDF content.",
+        "summary": "",
+    }
+
+    result_path = PdfExporter.generate(str(output_file), sample_data)
+    assert os.path.exists(result_path)
+    assert os.path.getsize(result_path) > 0

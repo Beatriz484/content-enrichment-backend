@@ -66,5 +66,11 @@ class PdfExporter:
         translated_text = str(content_data.get('translated_text', '')).replace('\n', '<br/>')
         story.append(Paragraph(translated_text, body_style))
 
+        # Sección 4: Resumen ejecutivo (solo si la IA lo generó)
+        summary = str(content_data.get('summary') or '').strip()
+        if summary:
+            story.append(Paragraph("4. Resumen Ejecutivo (IA)", section_style))
+            story.append(Paragraph(summary.replace('\n', '<br/>'), body_style))
+
         document.build(story)
         return file_path

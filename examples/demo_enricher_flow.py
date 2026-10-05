@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from src.enricher import AiContentEnricher
+from src.logging_config import setup_logging
 
 
 def run_manual_flow():
@@ -60,4 +61,5 @@ def run_manual_flow():
 
 
 if __name__ == "__main__":
+    setup_logging()
     run_manual_flow()

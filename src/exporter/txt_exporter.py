@@ -22,6 +22,13 @@ class TxtExporter:
             txt_file.write("-" * 40 + "\n")
             txt_file.write(f"{content_data.get('translated_text')}\n\n")
 
+            # Sección opcional: solo se escribe si la IA generó resumen
+            resumen = str(content_data.get("summary") or "").strip()
+            if resumen:
+                txt_file.write("4. RESUMEN EJECUTIVO (IA)\n")
+                txt_file.write("-" * 40 + "\n")
+                txt_file.write(f"{resumen}\n\n")
+
             txt_file.write("=" * 60 + "\n")
             txt_file.write("Informe generado exitosamente por Content Enricher Backend.\n")
 
