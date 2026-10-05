@@ -45,7 +45,7 @@ class AiContentEnricher:
             return text[:max_characters].strip()
         return text
 
-    def enrich_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
+    def enrich_content(self, text: str, model: str = "openai/gpt-oss-120b") -> str:
         """Enrich given content using AI models."""
         if not self._is_valid_text(text):
             logger.warning("Memoria vacía")
@@ -60,15 +60,17 @@ class AiContentEnricher:
             "manteniendo un tono didáctico, riguroso y estructurado."
         )
 
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Contenido a enriquecer:\n\n{prepared_text}"},
+        ]
+
         try:
             response = self.client.chat.completions.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Contenido a enriquecer:\n\n{prepared_text}"},
-                ],
+                messages=messages,  # type: ignore
                 temperature=0.7,
-                max_tokens=4096,  # Permite que desarrolle el texto entero sin cortarse
+                max_tokens=2048,  # Ajustado a 2048 para evitar el error 429 (TPM limit de Groq)
             )
             enriched_content = response.choices[0].message.content
             if enriched_content:
@@ -81,7 +83,7 @@ class AiContentEnricher:
             logger.warning(f"IA no disponible: {e}")
             return text
 
-    def summarize_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
+    def summarize_content(self, text: str, model: str = "openai/gpt-oss-120b") -> str:
         """Generate structured educational summary from input text."""
         if not self._is_valid_text(text):
             logger.warning("Memoria vacía")
@@ -95,13 +97,15 @@ class AiContentEnricher:
             "destacando los puntos principales, definiciones clave y conclusiones esenciales."
         )
 
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Contenido a resumir:\n\n{prepared_text}"},
+        ]
+
         try:
             response = self.client.chat.completions.create(
                 model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Contenido a resumir:\n\n{prepared_text}"},
-                ],
+                messages=messages,  # type: ignore
                 temperature=0.5,
                 max_tokens=1500,
             )
