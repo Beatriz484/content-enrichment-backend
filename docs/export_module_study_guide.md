@@ -64,9 +64,12 @@ content_data (Dict[str, Any])
 | `topic` | `str` | Título del informe. |
 | `raw_text` | `str` | Contenido original extraído. |
 | `enriched_text` | `str` | Contenido enriquecido por IA. |
-| `translated_text` | `str` | Contenido traducido. |
+| `translated_text` | `str` | Contenido traducido (vacío mientras el traductor está en desarrollo). |
+| `summary` | `str` | **Opcional.** Resumen ejecutivo: si está vacío, se omite la sección 4. |
 
-Las cuatro claves son **obligatorias**: forman el conjunto `REQUIRED_KEYS` del validador.
+Las cuatro primeras claves son **obligatorias**: forman el conjunto `REQUIRED_KEYS` del validador. `summary` no lo es, por lo que su ausencia no bloquea la exportación.
+
+El diccionario lo construye `ContentPipeline.construir_content_data()` (`src/pipeline.py`), que es quien alimenta al exportador en el flujo real de la CLI.
 
 ---
 
@@ -97,7 +100,7 @@ tests/test_exporter/
 ### 4.3 Script de demostración
 
 ```text
-demo_exporter.py    # Interfaz por consola en la raíz del proyecto
+examples/demo_exporter.py    # Interfaz por consola en examples/
 ```
 
 Pide nombre y formato al usuario, construye un `sample_data` de ejemplo (tema NLP) y llama al orquestador.
@@ -190,6 +193,7 @@ Informe generado exitosamente por Content Enricher Backend.
 
 - Encabezado: `"=" * 60`.
 - Secciones numeradas separadas por `"-" * 40`.
+- **Sección 4 opcional**: si `content_data["summary"]` no está vacío, escribe `4. RESUMEN EJECUTIVO (IA)` antes del pie; si está vacío, el informe termina en la sección 3.
 - Pie con `"=" * 60` y mensaje final.
 - Devuelve `file_path` para que el orquestador lo reenvíe al llamador.
 
@@ -208,6 +212,7 @@ Clase con `@staticmethod generate(file_path, content_data) -> str` basada en Rep
 
 - Construye el `story`: título en negrita (`<b>Informe de Investigación:</b> {topic}`), un `Spacer(1, 10)` y las 3 secciones (`1. Contenido Original (Extraído)`, `2. Contenido Enriquecido y Resumido (IA)`, `3. Contenido Traducido`).
 - Convierte saltos de línea con `.replace('\n', '<br/>')` para que ReportLab (que interpreta HTML básico en `Paragraph`) los renderice.
+- **Sección 4 opcional**: si `content_data["summary"]` no está vacío, añade `4. Resumen Ejecutivo (IA)` con el mismo estilo de sección antes de `document.build(story)`.
 - `document.build(story)` y retorno de `file_path`.
 
 ### 5.5 `__init__.py`
@@ -224,7 +229,7 @@ Expone **solo** el orquestador, para que el consumidor use la API de alto nivel:
 from src.exporter import DocumentExporter
 ```
 
-### 5.6 Script de consola (`demo_exporter.py`)
+### 5.6 Script de consola (`examples/demo_exporter.py`)
 
 1. Inserta la raíz del proyecto en `sys.path` para que Python reconozca el paquete `src`.
 2. Imprime el encabezado `SISTEMA DE GENERACIÓN DE INFORMES`.
@@ -239,7 +244,7 @@ from src.exporter import DocumentExporter
 
 ### 6.1 Propósito
 
-Verificar de forma **aislada** que cada capa del exportador funciona y que las regresiones se detectan automáticamente. Hoy la suite contiene **13 tests, todos en verde**.
+Verificar de forma **aislada** que cada capa del exportador funciona y que las regresiones se detectan automáticamente. Hoy la suite contiene **17 tests, todos en verde**.
 
 ### 6.2 Herramientas
 
@@ -271,17 +276,23 @@ Verificar de forma **aislada** que cada capa del exportador funciona y que las r
 | `test_export_content_pdf_success` | Flujo completo con formato `"pdf"` | `True`, la ruta termina en `informe_test.pdf` y el archivo existe |
 | `test_export_content_validation_failure` | Formato `"doc"` con `content_data = {}` | `False` + `"Error de Validación"` y **no** se crea ningún archivo |
 
-#### `test_txt_exporter.py` — 1 test
+#### `test_txt_exporter.py` — 3 tests
 
 | Test | Escenario | Aserción |
 |------|-----------|----------|
 | `test_txt_exporter_generate_success` | Datos completos | El archivo existe y contiene: el título `INFORME DE INVESTIGACIÓN: Python Testing`, las 3 secciones (`1. CONTENIDO ORIGINAL (EXTRAÍDO)`, `2. CONTENIDO ENRIQUECIDO Y RESUMIDO (IA)`, `3. CONTENIDO TRADUCIDO`) y el texto original |
+| `test_txt_exporter_incluye_resumen_cuando_existe` | Datos con `summary` | Aparece `4. RESUMEN EJECUTIVO (IA)` y su contenido |
+| `test_txt_exporter_omite_resumen_si_es_vacio` | `summary: ""` | **No** aparece `4. RESUMEN` y se conserva la sección 3 |
 
-#### `test_pdf_exporter.py` — 1 test
+#### `test_pdf_exporter.py` — 3 tests
 
 | Test | Escenario | Aserción |
 |------|-----------|----------|
 | `test_pdf_exporter_generate_success` | Datos completos | El archivo existe y `os.path.getsize() > 0` (ReportLab no lanza excepciones) |
+| `test_pdf_exporter_con_resumen_genera_archivo` | Datos con `summary` | El PDF se construye con la sección 4 sin errores y pesa más de 0 |
+| `test_pdf_exporter_sin_resumen_genera_archivo` | `summary: ""` | El PDF se construye omitiendo la sección 4 |
+
+> En PDF solo se verifica la existencia y el tamaño: el contenido va comprimido en el flujo del documento, así que la comprobación textual se hace sobre el TXT, que sí se lee en UTF-8.
 
 ### 6.4 Ejemplo de test real
 
@@ -314,7 +325,7 @@ def test_txt_exporter_generate_success(tmp_path):
 ### 6.5 Cómo ejecutar los tests
 
 ```bash
-# Toda la suite del exportador (13 tests)
+# Toda la suite del exportador (17 tests)
 pytest tests/test_exporter/ -v
 
 # Con cobertura
@@ -362,7 +373,7 @@ Procesando y generando archivo...
 ```
 
 ```bash
-python demo_exporter.py
+python examples/demo_exporter.py
 ```
 
 ---
