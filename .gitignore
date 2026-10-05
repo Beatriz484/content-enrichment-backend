@@ -11,4 +11,12 @@ env/
 
 # Logs y Archivos de Salida
 logs/*.log
+
+# Archivos generados por pytest / coverage
+.coverage
+.pytest_cache/
+
+# Kilo Code (worktrees de agentes IA)
+.kilo/
+
 output/
