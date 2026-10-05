@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: conventional-commits-check
+        name: Check Conventional Commit Format
+        entry: >
+          python -c "import sys, re; pattern=r'^(feat|fix|docs|style|refactor|test|chore)(\([a-z0-9_-]+\))?: [a-zA-Z0-9_-].+'; msg=open(sys.argv[1], encoding='utf-8').read().strip(); sys.exit(0 if re.match(pattern, msg) else print('\n[ERROR] Commit message must follow Conventional Commits in English.\nExample: feat: add scraper logic\n') or 1)"
+        language: system
+        stages: [commit-msg]
