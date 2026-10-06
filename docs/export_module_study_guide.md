@@ -3,8 +3,25 @@
 > **Proyecto:** `content-enrichment-backend`
 > **Módulo:** `src/exporter/`
 > **Tests:** `tests/test_exporter/`
-> **Stack:** Python · `reportlab` (PDF) · escritura nativa UTF-8 (TXT) · `pytest`
-> **Última actualización:** 2026-10-05
+> **Stack:** Python · `reportlab` (PDF) · escritura nativa UTF-8 con BOM (TXT) · `pytest`
+> **Última actualización:** 2026-10-06
+
+> ### ⚠️ Estado actual tras la iteración de la matriz de control
+>
+> Esta guía describe la primera versión del módulo. Los siguientes puntos han
+> cambiado y son los vigentes:
+>
+> | Antes | Ahora |
+> |---|---|
+> | Se exportaban siempre las secciones 1-4 | El archivo contiene **solo** `{"topic", "body"}` |
+> | `titles.py` con rótulos por estado de la IA | **Eliminado** (`src/exporter/titles.py`) |
+> | `examples/demo_exporter.py` | **Eliminado** (duplicaba la CLI) |
+> | TXT en UTF-8 sin BOM | UTF-8 **con BOM** (`utf-8-sig`) para que Windows lo reconozca |
+> | PDF en Helvetica puro (caracteres rotos) | `pdf_fonts.py` registra una TTF Unicode del sistema + fallback de normalización |
+> | Texto sin escapar a `Paragraph` | Texto escapado como XML (`<...>` deja de desaparecer) |
+>
+> **Documentación vigente:** `README.md` (matriz de control) y
+> `docs/historias_usuario.md` (HU-06).
 
 ---
 

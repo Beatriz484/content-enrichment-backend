@@ -1,15 +1,61 @@
 """Orquestador del flujo Content Enricher.
 
-Coordina los módulos del sistema (scraper, IA y traductor) y prepara el
-diccionario ``content_data`` que consume el exportador. La capa de UI
-(``src/main.py``) solo muestra resultados y pide decisiones al usuario.
+Coordina los módulos del sistema (scraper, IA y traductor) y aplica la matriz
+de control: ``base → (resumen) → (traducción)``. Ese orden es el único que la
+CLI y el exportador necesitan conocer.
+
+La capa de UI (``src/prompts.py`` y ``src/main.py``) solo muestra resultados y
+pide decisiones al usuario.
 """
 import logging
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
+from .errors import ServicioNoDisponibleError
+from .options import ContentMode, OutputOptions
 from .scraper import WikipediaScraper
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Resultado:
+    """Salida del procesamiento.
+
+    Attributes:
+        topic: Título real del artículo de Wikipedia.
+        body: **La variante pedida**. Es lo único que se escribe en el archivo.
+        original: Texto extraído de Wikipedia, para mostrarlo en la terminal.
+        enriquecido: Texto ampliado por IA (vacío si el modo no lo pidió).
+        resumen: Síntesis (vacía si no se pidió).
+        traducido: Traducción (vacía si no se pidió).
+        variante: Rótulo de la variante resuelta, para informar al usuario.
+    """
+
+    topic: str
+    body: str
+    original: str
+    enriquecido: str = ""
+    resumen: str = ""
+    traducido: str = ""
+    variante: str = ""
+
+    @property
+    def informe(self) -> Dict[str, Any]:
+        """Contrato mínimo que consume el exportador: título + variante."""
+        return {"topic": self.topic, "body": self.body}
+
+    @property
+    def pasos(self) -> List[Tuple[str, str]]:
+        """Pares (rótulo, texto) que la CLI imprime en pantalla."""
+        mostrar: List[Tuple[str, str]] = [("CONTENIDO ORIGINAL", self.original)]
+        if self.enriquecido:
+            mostrar.append(("CONTENIDO ENRIQUECIDO (IA)", self.enriquecido))
+        if self.resumen:
+            mostrar.append(("RESUMEN (IA)", self.resumen))
+        if self.traducido:
+            mostrar.append(("CONTENIDO TRADUCIDO", self.traducido))
+        return mostrar
 
 
 class ContentPipeline:
@@ -19,7 +65,7 @@ class ContentPipeline:
         """
         Args:
             enricher: Objeto con ``enrich_content(text)`` y ``summarize_content(text)``.
-                ``None`` cuando no hay API key de IA (degradación elegante).
+                ``None`` cuando no hay API key de IA.
             translator: Objeto con ``translate(text, target_language) -> str``.
                 ``None`` mientras el módulo ``src/translator.py`` está en desarrollo.
         """
@@ -58,22 +104,30 @@ class ContentPipeline:
 
     # 2. Enriquecimiento ----------------------------------------------
     def enriquecer(self, texto: str) -> str:
-        """Amplía el contenido con IA. Sin IA disponible devuelve el original."""
-        if self.enricher is None:
-            logger.warning("IA no disponible: se conserva el contenido original.")
-            return texto
+        """Amplía el contenido con IA.
 
+        Raises:
+            ServicioNoDisponibleError: no hay enriquecedor inyectado.
+        """
+        if self.enricher is None:
+            raise ServicioNoDisponibleError(
+                "El servicio de IA no está disponible: falta OPENAI_API_KEY."
+            )
         enriquecido = self.enricher.enrich_content(texto)
         logger.info("IA: contenido enriquecido generado.")
         return enriquecido
 
     # 3. Resumen -------------------------------------------------------
     def resumir(self, texto: str) -> str:
-        """Genera un resumen con IA. Devuelve '' si no hay IA disponible."""
-        if self.enricher is None:
-            logger.warning("IA no disponible: no se generará resumen.")
-            return ""
+        """Genera una síntesis del texto con IA.
 
+        Raises:
+            ServicioNoDisponibleError: no hay enriquecedor inyectado.
+        """
+        if self.enricher is None:
+            raise ServicioNoDisponibleError(
+                "El servicio de IA no está disponible: falta OPENAI_API_KEY."
+            )
         resumen = self.enricher.summarize_content(texto)
         logger.info("IA: resumen generado.")
         return resumen
@@ -82,47 +136,55 @@ class ContentPipeline:
     def traducir(self, texto: str, idioma: str) -> str:
         """Traduce al idioma indicado.
 
-        Devuelve ``''`` si el traductor aún no está disponible o falla, para
-        no bloquear el resto del flujo (degradación elegante).
+        Raises:
+            ServicioNoDisponibleError: no hay traductor inyectado.
+            TranslationError: la API de traducción falló.
         """
         if self.translator is None:
-            logger.warning(
-                "Traducción pendiente: el módulo 'src/translator.py' aún no está disponible."
+            raise ServicioNoDisponibleError(
+                "El módulo de traducción no está disponible: "
+                "src/translator.py aún no ha sido implementado."
             )
-            return ""
-
-        try:
-            traducido = self.translator.translate(texto, idioma)
-        except Exception as error:  # noqa: BLE001 - el traductor decide sus errores
-            logger.error("Traducción fallida al idioma '%s': %s", idioma, error)
-            return ""
-
+        traducido = self.translator.translate(texto, idioma)
         logger.info("Traducción al idioma '%s' completada.", idioma)
         return traducido
 
-    # Contrato del exportador ------------------------------------------
-    @staticmethod
-    def construir_content_data(
-        titulo: str,
-        texto_original: str,
-        texto_enriquecido: str,
-        texto_traducido: str = "",
-        resumen: str = "",
-    ) -> Dict[str, Any]:
-        """Construye el ``content_data`` que consumen TxtExporter y PdfExporter.
+    # Matriz de control -------------------------------------------------
+    def procesar(self, investigacion: Dict[str, Any], opciones: OutputOptions) -> Resultado:
+        """Aplica la variante elegida y devuelve la salida exacta a mostrar/exportar.
 
-        Incluye la bandera ``enriched_with_ai``: la IA se consideró activa si
-        ``enriched_text`` difiere de ``raw_text``, de modo que los exportadores
-        pongan un título coherente en la sección 2.
+        El orden es siempre el mismo:
 
-        ``summary`` es opcional: si viene vacío, los exportadores omiten la
-        sección 4 del informe.
+            1. base      → texto original o enriquecido (eje A)
+            2. resumen   → síntesis de la base, si se pidió (eje B)
+            3. traducción→ aplicada al final sobre la variante, si se pidió
+
+        Raises:
+            ServicioNoDisponibleError: falta un servicio obligatorio.
+            AiError / TranslationError: falló una llamada a una API externa.
         """
-        return {
-            "topic": titulo,
-            "raw_text": texto_original,
-            "enriched_text": texto_enriquecido,
-            "translated_text": texto_traducido,
-            "summary": resumen,
-            "enriched_with_ai": texto_enriquecido != texto_original,
-        }
+        original = investigacion["texto"]
+        base = original
+        enriquecido = ""
+
+        if opciones.content_mode is ContentMode.ENRICHED:
+            enriquecido = self.enriquecer(original)
+            base = enriquecido
+
+        resumen = self.resumir(base) if opciones.resumir else ""
+        cuerpo = resumen if opciones.resumir else base
+
+        traducido = self.traducir(cuerpo, opciones.idioma) if opciones.idioma else ""
+        if opciones.idioma:
+            cuerpo = traducido
+
+        logger.info("Variante resuelta: '%s'.", opciones.variante.value)
+        return Resultado(
+            topic=investigacion["titulo"],
+            body=cuerpo,
+            original=original,
+            enriquecido=enriquecido,
+            resumen=resumen,
+            traducido=traducido,
+            variante=opciones.variante.value,
+        )

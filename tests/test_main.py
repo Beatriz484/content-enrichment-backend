@@ -1,38 +1,68 @@
 """Tests de la CLI (``src/main.py``) con todas las dependencias simuladas."""
 from unittest.mock import MagicMock, patch
 
-from src.main import _configurar_consola, _confirmar, _pedir_formato, _preguntar_texto, main
+import pytest
+
+from src.enricher import AiContentEnricher
+from src.errors import AiError
+from src.main import _configurar_consola, _crear_enricher, main
+from src.options import ContentMode, OutputOptions
 from src.pipeline import ContentPipeline
 
+INVESTIGACION = {
+    "titulo": "Python",
+    "parrafos": ["Párrafo uno.", "Párrafo dos."],
+    "texto": "Párrafo uno.\n\nPárrafo dos.",
+}
 
-def _pipeline_simulada():
-    pipeline = MagicMock()
-    pipeline.investigar.return_value = {
-        "titulo": "Python",
-        "parrafos": ["Párrafo uno.", "Párrafo dos."],
-        "texto": "Párrafo uno.\n\nPárrafo dos.",
+
+def _opciones(**cambios):
+    base = {
+        "tema": "python",
+        "content_mode": ContentMode.ORIGINAL,
+        "formato": "txt",
+        "nombre": "informe_test",
     }
-    pipeline.enriquecer.return_value = "Contenido enriquecido"
-    pipeline.resumir.return_value = "Resumen ejecutivo"
-    pipeline.traducir.return_value = ""
-    # Se mantiene la construcción real del contrato del exportador
-    pipeline.construir_content_data = ContentPipeline.construir_content_data
+    base.update(cambios)
+    return OutputOptions(**base)
+
+
+def _pipeline_simulado():
+    pipeline = MagicMock(spec=ContentPipeline)
+    pipeline.translator = None
+    pipeline.investigar.return_value = INVESTIGACION
+    pipeline.procesar.return_value = MagicMock(
+        topic="Python",
+        body="VARIANTE FINAL",
+        pasos=[("CONTENIDO ORIGINAL", INVESTIGACION["texto"])],
+        informe={"topic": "Python", "body": "VARIANTE FINAL"},
+        variante="original",
+    )
     return pipeline
 
 
-def _ejecutar_cli(respuestas, export_resultado=(True, "output/informe_test.txt")):
-    """Lanza la CLI con respuestas simuladas y devuelve los mocks."""
+def _ejecutar_cli(
+    opciones=None,
+    guardar=True,
+    pipeline_factory=None,
+    export_resultado=(True, "output/informe_test.txt"),
+    enricher=MagicMock(spec=AiContentEnricher),
+):
+    """Lanza la CLI con dependencias simuladas y devuelve los mocks."""
+    pipeline = (pipeline_factory or _pipeline_simulado)()
     with patch("src.main.setup_logging"), \
-            patch("src.main.AiContentEnricher", return_value=MagicMock()), \
-            patch("src.main.ContentPipeline", return_value=_pipeline_simulada()) as pipeline_cls, \
-            patch("src.main.DocumentExporter") as exporter_cls, \
-            patch("builtins.input", side_effect=respuestas):
+            patch("src.main.AiContentEnricher", return_value=enricher), \
+            patch("src.main.ContentPipeline", return_value=pipeline), \
+            patch("src.main.pedir_opciones", return_value=opciones or _opciones()), \
+            patch("src.main.confirmar", return_value=guardar), \
+            patch("src.main.pedir_exportacion", side_effect=lambda opciones: opciones), \
+            patch("src.main.DocumentExporter") as exporter_cls:
         exporter_cls.return_value.export_content.return_value = export_resultado
         codigo = main()
-    return codigo, pipeline_cls, exporter_cls
+    return codigo, pipeline, exporter_cls
 
 
-# --- Helpers de interacción -------------------------------------------------
+# --- Consola ---------------------------------------------------------------
 
 def test_configurar_consola_es_resiliente_a_los_streams():
     """La CLI no debe fallar por codificación ni si un stream no soporta reconfigure."""
@@ -55,88 +85,107 @@ def test_configurar_consola_fuerza_utf8():
     stdout.reconfigure.assert_called_with(encoding="utf-8", errors="replace")
 
 
-def test_preguntar_texto_repite_hasta_recibir_valor():
-    with patch("builtins.input", side_effect=["", "   ", "tema final"]):
-        assert _preguntar_texto("➤ Tema: ") == "tema final"
+# --- Servicio de IA ---------------------------------------------------------
+
+def test_crear_enricher_sin_clave_devuelve_none(monkeypatch):
+    """Sin credenciales la CLI sigue en pie: el enricher queda en ``None``."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    assert _crear_enricher() is None
 
 
-def test_confirmar_acepta_respuestas_validas():
-    with patch("builtins.input", side_effect=["xyz", "no"]):
-        assert _confirmar("¿Continuar?") is False
-    with patch("builtins.input", side_effect=["sí"]):
-        assert _confirmar("¿Continuar?") is True
+def test_crear_enricher_con_clave(monkeypatch):
+    """Con credenciales se construye el cliente de IA."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://ejemplo/v1")
 
+    enricher = _crear_enricher()
 
-def test_confirmar_enter_conserva_el_valor_por_defecto():
-    with patch("builtins.input", return_value=""):
-        assert _confirmar("¿Continuar?", True) is True
-        assert _confirmar("¿Continuar?", False) is False
-
-
-def test_pedir_formato_valida_entradas():
-    with patch("builtins.input", side_effect=["docx", "TXT"]):
-        assert _pedir_formato() == "txt"
+    assert enricher is not None
+    assert enricher.api_key == "sk-test"
 
 
 # --- Flujo completo ---------------------------------------------------------
 
-def test_main_exporta_el_informe_correctamente():
-    codigo, _, exporter_cls = _ejecutar_cli(
-        ["Python", "en", "", "", "txt", "informe_test"]
-    )
+def test_main_exporta_exclusivamente_la_variante():
+    """El exportador recibe únicamente {topic, body}: no puede colar secciones."""
+    codigo, pipeline, exporter_cls = _ejecutar_cli()
 
     assert codigo == 0
+    pipeline.investigar.assert_called_once_with("python")
+    pipeline.procesar.assert_called_once()
     llamada = exporter_cls.return_value.export_content.call_args.kwargs
     assert llamada["file_name"] == "informe_test"
     assert llamada["output_format"] == "txt"
-    assert llamada["content_data"]["summary"] == "Resumen ejecutivo"
-    assert llamada["content_data"]["topic"] == "Python"
+    assert llamada["content_data"] == {"topic": "Python", "body": "VARIANTE FINAL"}
 
 
-def test_main_sin_ia_genera_informe_sin_resumen():
-    with patch("src.main.setup_logging"), \
-            patch("src.main.AiContentEnricher", side_effect=ValueError("API key not found")), \
-            patch("src.main.ContentPipeline") as pipeline_cls, \
-            patch("src.main.DocumentExporter") as exporter_cls, \
-            patch("builtins.input", side_effect=["Python", "en", "", "", "pdf", "informe"]):
-        pipeline = pipeline_cls.return_value
-        pipeline.enriquecer.return_value = "Contenido original"
-        pipeline.resumir.return_value = ""
-        pipeline.traducir.return_value = ""
-        pipeline.construir_content_data = ContentPipeline.construir_content_data
-        exporter_cls.return_value.export_content.return_value = (True, "output/informe.pdf")
-        codigo = main()
+def test_main_muestra_los_resultados_de_wikipedia_antes_de_exportar():
+    """Requisito: la extracción se muestra antes de pedir acciones adicionales."""
+    codigo, pipeline, _ = _ejecutar_cli()
 
-    # Sin API key la pipeline se construye sin enriquecedor
-    assert pipeline_cls.call_args.kwargs["enricher"] is None
     assert codigo == 0
+    pipeline.investigar.assert_called_once_with("python")
+
+
+def test_main_con_opciones_invalidas_no_investiga():
+    """Failed: la validación corta el flujo antes de gastar una petición."""
+    opciones = _opciones(content_mode=ContentMode.ENRICHED, resumir=True, idioma="fr")
+    codigo, pipeline, exporter_cls = _ejecutar_cli(
+        opciones=opciones,
+        enricher=None,
+    )
+
+    assert codigo == 1
+    pipeline.investigar.assert_not_called()
+    exporter_cls.return_value.export_content.assert_not_called()
+
+
+def test_main_sin_ia_en_modo_original_continua():
+    """La variante original no necesita IA: el flujo no se interrumpe."""
+    opciones = _opciones(content_mode=ContentMode.ORIGINAL, resumir=False, idioma=None)
+    codigo, pipeline, _ = _ejecutar_cli(opciones=opciones, enricher=None)
+
+    assert codigo == 0
+    pipeline.procesar.assert_called_once()
+
+
+def test_main_aborta_si_wikipedia_falla():
+    """Un artículo inexistente se informa y no se exporta nada."""
+    def _pipeline_roto():
+        pipeline = _pipeline_simulado()
+        pipeline.investigar.side_effect = ValueError("no existe")
+        return pipeline
+
+    codigo, _, exporter_cls = _ejecutar_cli(pipeline_factory=_pipeline_roto)
+
+    assert codigo == 1
+    exporter_cls.return_value.export_content.assert_not_called()
+
+
+def test_main_aborta_si_el_procesamiento_falla():
+    """Un fallo de la API de IA llega a la terminal y no genera archivo."""
+    def _pipeline_con_error():
+        pipeline = _pipeline_simulado()
+        pipeline.procesar.side_effect = AiError("la API de IA se cayó")
+        return pipeline
+
+    codigo, _, exporter_cls = _ejecutar_cli(pipeline_factory=_pipeline_con_error)
+
+    assert codigo == 1
+    exporter_cls.return_value.export_content.assert_not_called()
 
 
 def test_main_descarta_el_informe_si_el_usuario_dice_que_no():
-    codigo, _, exporter_cls = _ejecutar_cli(["Python", "en", "n", "n"])
+    """El usuario puede abandonar sin escribir nada en disco."""
+    codigo, _, exporter_cls = _ejecutar_cli(guardar=False)
 
     assert codigo == 0
-    exporter_cls.assert_not_called()
-
-
-def test_main_no_exporta_si_wikipedia_falla():
-    with patch("src.main.setup_logging"), \
-            patch("src.main.AiContentEnricher", return_value=MagicMock()), \
-            patch("src.main.ContentPipeline") as pipeline_cls, \
-            patch("src.main.DocumentExporter") as exporter_cls, \
-            patch("builtins.input", side_effect=["tema inexistente", "en"]):
-        pipeline_cls.return_value.investigar.side_effect = ValueError("no existe")
-        codigo = main()
-
-    assert codigo == 1
-    exporter_cls.assert_not_called()
+    exporter_cls.return_value.export_content.assert_not_called()
 
 
 def test_main_devuelve_error_si_la_exportacion_falla():
-    codigo, _, _ = _ejecutar_cli(
-        ["Python", "en", "", "", "txt", "informe"],
-        export_resultado=(False, "Error de Validación: formato no permitido"),
-    )
+    codigo, _, _ = _ejecutar_cli(export_resultado=(False, "Error de Validación: formato"))
 
     assert codigo == 1
 

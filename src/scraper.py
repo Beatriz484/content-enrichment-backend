@@ -5,6 +5,7 @@ la URL con el tema indicado. Si Wikipedia responde 404 (el tema no coincide con
 el título real), se recurre a la búsqueda de la API como respaldo para localizar
 el artículo más relevante.
 """
+import re
 from typing import Optional
 
 import requests
@@ -82,6 +83,15 @@ class WikipediaScraper:
         return titulo_tag.text.strip() if titulo_tag else None
 
     @staticmethod
+    def _limpiar_texto(texto: str) -> str:
+        """Normaliza el párrafo extraído.
+
+        Wikipedia inserta espacios duros (``\\xa0``) y espacios repetidos que
+        después se ven corruptos en el TXT/PDF, así que se normalizan en origen.
+        """
+        return re.sub(r"\s+", " ", texto.replace("\xa0", " ")).strip()
+
+    @staticmethod
     def _extraer_parrafos(soup: BeautifulSoup) -> list:
         """Devuelve los primeros ``MAX_PARRAFOS`` párrafos con contenido del artículo."""
         content_div = soup.find(id="mw-content-text")
@@ -89,7 +99,7 @@ class WikipediaScraper:
 
         parrafos = []
         for paragraph in parrafos_html:
-            texto = paragraph.get_text().strip()
+            texto = WikipediaScraper._limpiar_texto(paragraph.get_text())
             if texto:
                 parrafos.append(texto)
             if len(parrafos) == MAX_PARRAFOS:

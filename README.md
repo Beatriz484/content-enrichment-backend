@@ -1,6 +1,6 @@
 # Content Enricher - Backend 🚀
 
-**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema permite buscar un tema en Wikipedia, extraer su contenido clave, enriquecerlo y resumirlo mediante Inteligencia Artificial, traducirlo a diferentes idiomas y exportar el resultado final en formatos listos para su uso (`.txt` o `.pdf`).
+**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema permite buscar un tema en Wikipedia, extraer su contenido clave, enriquecerlo y resumirlo mediante Inteligencia Artificial, traducirlo a diferentes idiomas y exportar **únicamente la variante solicitada** en formato `.txt` o `.pdf`.
 
 ---
 
@@ -8,8 +8,9 @@
 
 - **Lenguaje:** Python 3.10+
 - **Scraping:** `beautifulsoup4`, `requests`
+- **IA:** `openai` (API compatible con OpenAI)
 - **Generación de PDF:** `reportlab`
-- **Testing & Cobertura:** `pytest`, `pytest-cov`, `pytest-mock`
+- **Testing & Cobertura:** `pytest`, `pytest-cov`, `pytest-bdd`
 - **Validaciones & Git Hooks:** `pre-commit` (Conventional Commits)
 - **Variables de Entorno:** `python-dotenv`
 
@@ -17,64 +18,60 @@
 
 ## 📂 Estructura del Proyecto
 
-El proyecto sigue una arquitectura modular y orientada a objetos (POO) alineada con los principios SOLID:
-
 ```text
 content-enrichment-backend/
 ├── docs/                         # Guías de estudio, historias de usuario y diagramas
-│   ├── export_module_study_guide.md       # Guía del módulo de exportación (TXT / PDF)
-│   ├── ai_content_enricher_study_guide.md # Guía del módulo AiContentEnricher
+│   ├── export_module_study_guide.md
+│   ├── ai_content_enricher_study_guide.md
 │   ├── historias_usuario.md
 │   ├── flowchart.png
-│   ├── img.png
-│   └── tests.feature
+│   └── img.png
+├── scripts/
+│   └── check_models.py           # Diagnóstico de la conexión con la API de IA
 ├── src/                          # Código fuente principal
 │   ├── __init__.py
-│   ├── main.py                   # CLI interactiva (solo entrada/salida de usuario)
-│   ├── pipeline.py               # ContentPipeline: investigar → IA → resumen → traducción
+│   ├── errors.py                 # Jerarquía de errores controlados del dominio
+│   ├── options.py                # Esquema de opciones + matriz de validación
+│   ├── prompts.py                # Formulario de opciones (solo diálogo con el usuario)
+│   ├── main.py                   # Orquestador de la CLI (entrada/salida)
+│   ├── pipeline.py               # ContentPipeline: matriz de control del flujo
 │   ├── logging_config.py         # Logging a consola y a logs/app.log
-│   ├── scraper.py                # Extracción de datos desde Wikipedia (con búsqueda de respaldo)
+│   ├── scraper.py                # Extracción desde Wikipedia (con búsqueda de respaldo)
 │   ├── enricher.py               # Enriquecimiento y resúmenes con IA
-│   ├── translator.py             # Traducción (módulo en desarrollo por el equipo)
+│   ├── translator.py             # Contrato de traducción (HU-04, pendiente de entrega)
 │   └── exporter/                 # Paquete de exportación (TXT / PDF)
-│       ├── __init__.py           # Expone DocumentExporter
 │       ├── document_exporter.py  # Orquestador de la exportación
 │       ├── validators.py         # Validación de entradas y saneo de nombres
-│       ├── titles.py             # Rótulos coherentes de cada sección del informe
-│       ├── txt_exporter.py       # Generación de TXT (UTF-8)
+│       ├── pdf_fonts.py          # Fuente Unicode y preparación de texto del PDF
+│       ├── txt_exporter.py       # Generación de TXT (UTF-8 con BOM)
 │       └── pdf_exporter.py       # Generación de PDF (ReportLab)
 ├── tests/                        # Suite de pruebas automáticas
-│   ├── __init__.py
-│   ├── test_scraper.py           # Scraper con peticiones simuladas (sin red)
-│   ├── test_scraper_bdd.py       # Escenarios BDD (pytest -m integration)
-│   ├── features/scraper.feature  # Escenarios Gherkin del scraper
-│   ├── test_enricher.py          # Enriquecimiento y resumen con mocks
-│   ├── test_pipeline.py          # Orquestador del flujo completo
-│   ├── test_main.py              # CLI con dependencias simuladas
-│   ├── test_logging_config.py    # Configuración del archivo de log
-│   └── test_exporter/            # Tests del módulo de exportación
-│       ├── __init__.py
-│       ├── test_document_exporter.py
-│       ├── test_validators.py
-│       ├── test_txt_exporter.py
-│       └── test_pdf_exporter.py
-├── examples/                     # Scripts de demostración y utilidades
-│   ├── demo_enricher_flow.py
-│   ├── demo_exporter.py
-│   └── check_models.py
-├── .gitignore                    # Exclusión de archivos temporales y entornos
-├── .pre-commit-config.yaml       # Reglas de validación para mensajes de commit
-├── requirements.txt              # Dependencias del proyecto
-└── README.md                     # Documentación principal
+│   ├── features/                 # Escenarios Gherkin
+│   │   ├── scraper.feature
+│   │   ├── options_matrix.feature
+│   │   └── export.feature
+│   ├── test_exporter/
+│   ├── test_options.py           # Esquema y matriz de validación
+│   ├── test_matrix.py            # Las 8 combinaciones de salida
+│   ├── test_options_matrix_bdd.py
+│   ├── test_export_bdd.py
+│   ├── test_pipeline.py
+│   ├── test_prompts.py
+│   ├── test_translator.py
+│   └── ...
+├── .pre-commit-config.yaml
+├── requirements.txt              # Dependencias de ejecución
+├── requirements-dev.txt          # Dependencias de desarrollo
+└── README.md
 ```
 
 ## 📚 Documentación del Proyecto
 
 - 📤 [Guía del Módulo de Exportación (TXT / PDF)](docs/export_module_study_guide.md)
 - 🤖 [Guía del Módulo AiContentEnricher](docs/ai_content_enricher_study_guide.md)
+- 🗂️ [Product Backlog e Historias de Usuario](docs/historias_usuario.md)
 
 ## ⚙️ Instalación y Configuración Local
-Sigue estos pasos para clonar e instalar el proyecto en tu máquina local:
 
 **1. Clonar el repositorio**
 
@@ -98,8 +95,13 @@ python -m venv venv
 **3. Instalar dependencias**
 
 ```bash
+# Solo para ejecutar la aplicación
 pip install -r requirements.txt
+
+# Para desarrollar (tests, cobertura y hooks de git)
+pip install -r requirements-dev.txt
 ```
+
 **4. Configurar variables de entorno**
 
 Crea un archivo `.env` en la raíz del proyecto a partir de `.env.example`:
@@ -107,23 +109,84 @@ Crea un archivo `.env` en la raíz del proyecto a partir de `.env.example`:
 ```bash
 OPENAI_API_KEY=tu_clave_de_openai_aqui
 OPENAI_BASE_URL=https://api.groq.com/openai/v1
+AI_MODEL=qwen/qwen3.8-27b
 ```
 
-> 💡 Sin `OPENAI_API_KEY` la aplicación funciona igualmente: avisa por pantalla y omite el enriquecimiento con IA.
+> 💡 Puedes verificar la configuración con `python scripts/check_models.py`.
+
+> ⚠️ **Sin `OPENAI_API_KEY` la aplicación sigue funcionando**, pero solo para la
+> variante *texto original* y sin resumen. Si eliges "enriquecido" o "resumen"
+> sin credenciales, el sistema lo indica **antes** de hacer ninguna petición y
+> no genera ningún archivo.
+
+---
+
+## 🎛️ Formulario de opciones de respuesta
+
+Al arrancar (`python -m src.main`) la CLI recorre este formulario:
+
+```text
+➤ Tema a investigar en Wikipedia
+➤ Modo de contenido
+   [1] Solo texto original (tal cual Wikipedia)
+   [2] Contenido enriquecido con IA
+➤ ¿Generar un resumen del contenido elegido? (sí/no)
+➤ Idioma de traducción (ej. en, fr — Enter = original)
+```
+
+Después de mostrar el resultado en terminal:
+
+```text
+¿Guardar el informe en disco? ➤ Formato (txt / pdf) ➤ Nombre del archivo
+```
+
+---
+
+## 🧭 Matriz de control de flujo
+
+Las opciones se reducen a **dos ejes independientes** más una transformación final:
+
+| Eje | Valores |
+|---|---|
+| **A · Modo de contenido** | `original` · `enriquecido` |
+| **B · Resumen** | `no` · `sí` |
+| **C · Idioma** | `ninguno` · `"xx"` (se aplica **siempre al final**) |
+
+Las 6 variaciones del documento de requisitos:
+
+| # | Caso | A | B | C | Contenido del archivo |
+|---|---|---|---|---|---|
+| 1 | Consulta simple | original | no | no | texto de Wikipedia |
+| 2 | Solo texto original | original | no | no | texto de Wikipedia |
+| 3 | Solo contenido enriquecido | enriquecido | no | no | texto enriquecido |
+| 4 | Solo resumen | cualquiera | **sí** | no | **solo** el resumen |
+| 5 | Enriquecido + resumen | enriquecido | **sí** | no | enriquecido **+** resumen |
+| 6 | Con traducción | cualquiera | cualquiera | **sí** | la variante ya traducida |
+
+La implementación es una secuencia fija y sin condicionales anidados
+(`src/pipeline.py::procesar`):
+
+```python
+base     = enriquecer(texto) if modo == ENRICHED else texto   # eje A
+cuerpo   = resumir(base) if resumir else base                 # eje B
+cuerpo   = traducir(cuerpo, idioma) if idioma else cuerpo     # eje C
+```
+
+> **Regla de exportación:** el archivo recibe **solo** `{"topic", "body"}`.
+> No puede incluir el texto original ni notas que no se pidieron: el
+> exportador no tiene acceso a nada más.
+
+---
 
 ## 🛑 Convenciones de Git y Commits
 
-Este repositorio exige que todos los commits se realicen en inglés y siguiendo el formato Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, etc.).
+Este repositorio exige que todos los commits se realicen en inglés y siguiendo el formato Conventional Commits (`feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`).
 
 **Activar el hook de validación local**
-
-Al clonar el proyecto por primera vez, debes ejecutar en tu terminal:
 
 ```bash
 python -m pre_commit install --hook-type commit-msg
 ```
-
-A partir de este momento, Git validará automáticamente que no se puedan realizar commits en español o con un formato incorrecto.
 
 **Ejemplos de commits válidos:**
 
@@ -134,72 +197,90 @@ test: add unit tests for pdf exporter
 docs: update setup instructions in README
 ```
 
+---
+
 ## 🧪 Ejecución de Pruebas (Testing)
 
-Para ejecutar la suite de pruebas unitarias e integración con pytest y verificar la cobertura de código:
-
 ```bash
-# Pruebas unitarias (sin red, rápidas)
+# Pruebas unitarias y BDD sin red (por defecto)
 pytest
 
-# Solo los escenarios BDD que consultan Wikipedia en tiempo real
+# Escenarios Gherkin que consultan Wikipedia en tiempo real
 pytest -m integration
 
 # Reporte de cobertura
 pytest --cov=src --cov-report=term-missing
 ```
 
-Las pruebas que pegan a servicios externos van marcadas con `@pytest.mark.integration` y **no** se ejecutan en el `pytest` por defecto.
+**Estado actual: 100 % de cobertura sobre `src/`.**
+
+La documentación Gherkin (`tests/features/`) cubre los dos tipos de caso que
+exige el documento de requisitos:
+
+| Fichero | Contenido |
+|---|---|
+| `scraper.feature` | Extracción correcta y artículo inexistente |
+| `options_matrix.feature` | Las 6 variaciones (`@exitoso`) y sus rechazos (`@fallido`) |
+| `export.feature` | Exportación exclusiva (`@exitoso`) y validaciones (`@fallido`) |
 
 ---
 
 ## 🚀 Uso de la Aplicación
 
-Para iniciar la interfaz interactiva por terminal (CLI), ejecuta:
-
 ```bash
 python -m src.main
 ```
 
-Flujo completo que sigue la CLI:
-
 ```text
 ➤ Tema a investigar en Wikipedia      (requerido)
-➤ Idioma de traducción                (requerido)
-[1/4] Wikipedia → título + 5 párrafos en pantalla
-[2/4] IA        → contenido enriquecido en pantalla
-[3/4] Resumen   → resumen ejecutivo (opcional, ⭐)
-[4/4] Traducción→ ⚠️ pendiente mientras src/translator.py está en desarrollo
-¿Guardar?  ➤ formato (txt / pdf) ➤ nombre del archivo
+➤ Modo de contenido                  [1] original · [2] enriquecido
+➤ ¿Generar un resumen?               (sí / no)
+➤ Idioma de traducción               (Enter = mantener idioma original)
+[1/3] Wikipedia → título + 5 párrafos en pantalla
+[2/3] Matriz de control → variante seleccionada en pantalla
+[3/3] Exportación → ¿Guardar? ➤ formato (txt / pdf) ➤ nombre
 🟢 ESTADO: ÉXITO → output/<nombre>.<ext>
 ```
-
-- **Sin `OPENAI_API_KEY`** la ejecución continúa: se avisa por pantalla y el informe se genera solo con el contenido de Wikipedia (degradación elegante).
-- El nombre del archivo se sanea automáticamente (sin caracteres prohibidos por el SO).
 
 ---
 
 ## 📝 Sistema de Logs (⭐)
 
-Cada ejecución registra el proceso completo en `logs/app.log` (directorio ignorado por git):
+Cada ejecución registra el proceso completo en `logs/app.log`:
 
 ```text
-[2026-10-05 16:00:14] [INFO] __main__: Solicitud recibida: tema='...', idioma='en'.
-[2026-10-05 16:00:15] [INFO] src.pipeline: Wikipedia: extraídos 5 párrafos de '...'.
-[2026-10-05 16:00:15] [WARNING] src.pipeline: Traducción pendiente: el módulo 'src/translator.py' aún no está disponible.
-[2026-10-05 16:00:15] [INFO] __main__: Informe exportado a 'output/informe.pdf'.
+[2026-10-06 13:09:48] [INFO] src.prompts: Opciones capturadas: tema='camas', modo='original', resumen=False, idioma=original.
+[2026-10-06 13:09:48] [INFO] src.pipeline: Wikipedia: extraídos 5 párrafos de 'Camas'.
+[2026-10-06 13:09:48] [INFO] src.pipeline: Variante resuelta: 'original'.
+[2026-10-06 13:09:48] [INFO] __main__: Informe exportado a 'output\informe.txt'.
 ```
 
-La configuración vive en `src/logging_config.py` (`setup_logging()`): salida simultánea a consola y a archivo.
+La configuración vive en `src/logging_config.py` (`setup_logging()`).
 
 ---
 
-## 🔌 Módulo de traducción (en desarrollo)
+## 🔌 Módulo de traducción (pendiente — HU-04)
 
-`src/translator.py` está pendiente de entrega por parte del equipo. La pipeline ya lo detecta automáticamente: basta con inyectar un objeto con esta interfaz en `ContentPipeline(translator=...)`:
+`src/translator.py` entrega el **contrato** que la pipeline ya consume:
 
 ```python
-def translate(self, text: str, target_language: str) -> str: ...
+class DeepTranslateTranslator:
+    disponible = ...
+    def translate(self, text: str, target_language: str) -> str: ...
 ```
 
-Hasta entonces, `ContentPipeline.traducir()` devuelve `""`, la CLI muestra el aviso y la sección 3 del informe se queda vacía.
+Mientras no esté implementado, pedir un idioma hace fallar la validación
+**antes** de procesar, con el mensaje: *"el módulo de traducción aún no está
+disponible"*. Para integrarlo: implementar `translate()` en esa clase y
+pasarla a `ContentPipeline(translator=DeepTranslateTranslator())`.
+
+---
+
+## 🐛 Solución de problemas
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| "No enriqueció nada" | Falta `.env` con `OPENAI_API_KEY` | `python scripts/check_models.py` |
+| El PDF sale con caracteres raros | Fuente sin cobertura Unicode | Resuelto: `src/exporter/pdf_fonts.py` registra una TTF del sistema |
+| El TXT se abre con tildes rotas en Windows | Falta el BOM UTF-8 | Resuelto: se escribe con `utf-8-sig` |
+| "el módulo de traducción no está disponible" | HU-04 sin entregar | Comportamiento esperado hasta que el equipo la integre |

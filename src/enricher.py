@@ -1,7 +1,17 @@
+"""Enriquecimiento y síntesis de texto con inteligencia artificial.
+
+Un único punto de llamada a la API (``_completar``) del que derivan las dos
+operaciones del sistema. Si la API falla se propaga ``AiError``: **nunca se
+devuelve el texto original haciéndose pasar por contenido enriquecido**.
+"""
 import logging
 import os
+from typing import Optional
+
 from dotenv import load_dotenv
 from openai import OpenAI
+
+from .errors import AiError
 
 load_dotenv()
 
@@ -9,12 +19,42 @@ load_dotenv()
 # en src.logging_config.setup_logging(), que invoca src.main al arrancar.
 logger = logging.getLogger(__name__)
 
+MODELO_POR_DEFECTO = os.getenv("AI_MODEL", "qwen/qwen3.8-27b")
+MAX_CARACTERES = 10000
+
+PROMPT_ENRIQUECER = (
+    "Eres un asistente educativo especializado en investigación y síntesis académica. "
+    "Tu tarea es enriquecer el contenido proporcionado: amplía los conceptos clave, "
+    "añade contexto histórico o técnico relevante y organiza la información con claridad, "
+    "manteniendo un tono didáctico, riguroso y estructurado."
+)
+
+PROMPT_RESUMIR = (
+    "Eres un asistente educativo especializado en síntesis de información. "
+    "Tu tarea es generar un resumen conciso y estructurado del contenido proporcionado, "
+    "destacando los puntos principales, definiciones clave y conclusiones esenciales."
+)
+
+
+def texto_valido(text: Optional[str]) -> bool:
+    """Indica si la cadena contiene contenido no vacío tras recortar espacios."""
+    return bool(text) and isinstance(text, str) and bool(text.strip())
+
+
+def ajustar_longitud(text: str, max_characters: int = MAX_CARACTERES) -> str:
+    """Recorta la entrada de forma segura para no desbordar el contexto."""
+    return text[:max_characters].strip() if len(text) > max_characters else text
+
 
 class AiContentEnricher:
-    """Service responsible for enriching and summarizing text using AI completions."""
+    """Cliente de una API compatible con OpenAI para enriquecer y resumir texto."""
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
-        """Initialize the OpenAI-compatible client validating credentials."""
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None) -> None:
+        """Inicializa el cliente validando las credenciales.
+
+        Raises:
+            ValueError: si no hay API key disponible.
+        """
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
 
@@ -23,90 +63,44 @@ class AiContentEnricher:
                 "API key not found. Ensure it is configured in .env or passed to constructor."
             )
 
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-        )
+        self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        self.model = MODELO_POR_DEFECTO
 
-    def _is_valid_text(self, text: str | None) -> bool:
-        """Check whether input text contains non-empty string content."""
-        if not text or not isinstance(text, str):
-            return False
-        return bool(text.strip())
+    def _completar(self, instruccion: str, texto: str, max_tokens: int, temperatura: float) -> str:
+        """Único punto de llamada a la API de chat completions.
 
-    def _adjust_length(self, text: str, max_characters: int = 10000) -> str:
-        """Truncate text safely if it exceeds max allowed character length."""
-        if len(text) > max_characters:
-            return text[:max_characters].strip()
-        return text
-
-    def enrich_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
-        """Enrich given content using AI models."""
-        if not self._is_valid_text(text):
-            logger.warning("Memoria vacía")
-            return text
-
-        prepared_text = self._adjust_length(text)
-
-        system_prompt = (
-            "Eres un asistente educativo especializado en investigación y síntesis académica. "
-            "Tu tarea es enriquecer el contenido proporcionado: amplía los conceptos clave, "
-            "añade contexto histórico o técnico relevante y organiza la información con claridad, "
-            "manteniendo un tono didáctico, riguroso y estructurado."
-        )
+        Raises:
+            AiError: si la API responde vacía o lanza una excepción.
+        """
+        if not texto_valido(texto):
+            raise AiError("No se puede procesar un texto vacío.")
 
         try:
             response = self.client.chat.completions.create(
-                model=model,
+                model=self.model,
                 messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Contenido a enriquecer:\n\n{prepared_text}"},
+                    {"role": "system", "content": instruccion},
+                    {"role": "user", "content": f"Contenido:\n\n{ajustar_longitud(texto)}"},
                 ],
-                temperature=0.7,
-                max_tokens=4096,  # Permite que desarrolle el texto entero sin cortarse
+                temperature=temperatura,
+                max_tokens=max_tokens,
             )
-            enriched_content = response.choices[0].message.content
-            if enriched_content:
-                logger.info("IA respondió con éxito")
-                return enriched_content.strip()
+        except Exception as error:
+            logger.error("Fallo en la API de IA: %s", error)
+            raise AiError(f"No se pudo contactar con la API de IA: {error}") from error
 
-            logger.warning("IA no disponible")
-            return text
-        except Exception as e:
-            logger.warning(f"IA no disponible: {e}")
-            return text
+        contenido = response.choices[0].message.content
+        if not contenido:
+            logger.error("La API de IA devolvió una respuesta vacía.")
+            raise AiError("La API de IA devolvió una respuesta vacía.")
 
-    def summarize_content(self, text: str, model: str = "qwen/qwen3.8-27b") -> str:
-        """Generate structured educational summary from input text."""
-        if not self._is_valid_text(text):
-            logger.warning("Memoria vacía")
-            return text
+        logger.info("IA: respuesta generada (%s caracteres).", len(contenido))
+        return contenido.strip()
 
-        prepared_text = self._adjust_length(text)
+    def enrich_content(self, text: str) -> str:
+        """Amplía el contenido con IA añadiendo contexto y explicaciones."""
+        return self._completar(PROMPT_ENRIQUECER, text, max_tokens=4096, temperatura=0.7)
 
-        system_prompt = (
-            "Eres un asistente educativo especializado en síntesis de información. "
-            "Tu tarea es generar un resumen conciso y estructurado del contenido proporcionado, "
-            "destacando los puntos principales, definiciones clave y conclusiones esenciales."
-        )
-
-        try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Contenido a resumir:\n\n{prepared_text}"},
-                ],
-                temperature=0.5,
-                max_tokens=1500,
-            )
-            summary_content = response.choices[0].message.content
-            if summary_content:
-                logger.info("IA respondió con éxito")
-                return summary_content.strip()
-
-            logger.warning("IA no disponible")
-            return text
-        except Exception as e:
-            logger.warning(f"IA no disponible: {e}")
-            return text
+    def summarize_content(self, text: str) -> str:
+        """Genera una síntesis estructurada y concisa del contenido."""
+        return self._completar(PROMPT_RESUMIR, text, max_tokens=1500, temperatura=0.5)
