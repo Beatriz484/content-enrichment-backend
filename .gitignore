@@ -13,3 +13,6 @@ env/
 # Logs y Archivos de Salida
 logs/*.log
 output/
+# Archivos generados por pytest / coverage
+.coverage
+.pytest_cache/
