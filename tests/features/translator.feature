@@ -154,6 +154,12 @@ Característica: Traducción del contenido con DeepTranslateService
       | ""         | No has escrito ningún idioma | vacío                      |
       | "mesa"     | no existe o está mal escrito | texto que no es un idioma  |
 
+  @fallido
+  Escenario: Recibir el idioma vacío desde el formulario
+    Dado que el formulario devuelve el idioma vacío (None) porque se pulsó Enter
+    Cuando se valida el idioma
+    Entonces se muestra el error "No has escrito ningún idioma"
+
   @exitoso
   Escenario: Un intento fallido y después uno correcto
     Dado que el usuario escribe "espanil" y después "francés"

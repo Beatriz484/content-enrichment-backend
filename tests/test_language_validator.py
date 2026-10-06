@@ -64,6 +64,12 @@ def test_escribir_un_idioma_con_errores(entrada, mensaje):
         validate_language(entrada)
 
 
+def test_recibir_el_idioma_vacio_desde_el_formulario():
+    """Escenario: Recibir el idioma vacío desde el formulario."""
+    with pytest.raises(InvalidLanguageError, match="No has escrito ningún idioma"):
+        validate_language(None)
+
+
 def test_un_intento_fallido_y_despues_uno_correcto(capsys):
     """Escenario: Un intento fallido y después uno correcto."""
     codigo = ask_language(input_func=entrada_simulada(["espanil", "francés"]))
