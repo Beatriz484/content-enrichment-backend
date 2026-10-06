@@ -1,3 +1,4 @@
 pre-commit
 deep-translator==1.11.4
 python-dotenv==1.2.3
+requests==2.32.5
