@@ -10,6 +10,12 @@ Interfaz pública:
 
     translate(text: str, target_language: str) -> str
 """
+import os
+
+from dotenv import load_dotenv
+
+# Carga las variables del archivo .env (si existe)
+load_dotenv()
 
 # Idioma de origen por defecto: el scraper lee de es.wikipedia.org
 DEFAULT_SOURCE_LANGUAGE = "es-ES"
@@ -23,6 +29,8 @@ class DeepTranslateService:
         Args:
             source_language: Código del idioma de origen (por defecto "es-ES").
             email: Email opcional para MyMemory. Sube el límite diario de uso.
+                Si no se pasa, se lee MYMEMORY_EMAIL del .env.
         """
         self.source_language = source_language
-        self.email = email
+        # Si no hay email, queda en None y MyMemory funciona igual
+        self.email = email or os.getenv("MYMEMORY_EMAIL") or None
