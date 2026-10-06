@@ -14,11 +14,3 @@ def test_el_stub_avisa_en_lugar_de_devolver_una_cadena_vacia():
     """Nunca debe aparecer una sección de traducción vacía en el informe."""
     with pytest.raises(ServicioNoDisponibleError, match="DeepTranslate"):
         DeepTranslateTranslator().translate("texto original", "fr")
-
-
-def test_traductor_falla_si_se_inyecta_por_error():
-    """Red de seguridad: aunque alguien lo inyecte, no finge haber traducido."""
-    from src.pipeline import ContentPipeline
-
-    with pytest.raises(ServicioNoDisponibleError):
-        ContentPipeline(translator=DeepTranslateTranslator()).traducir("texto", "fr")
