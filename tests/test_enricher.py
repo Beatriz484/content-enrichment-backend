@@ -113,6 +113,16 @@ def test_summarize_content_api_failure_returns_original(enricher_instance):
         assert enricher_instance.summarize_content("Texto largo") == "Texto largo"
 
 
+def test_summarize_content_empty_response_returns_original(enricher_instance):
+    """Una respuesta vacía de la API nunca se acepta como resumen."""
+    with patch.object(
+        enricher_instance.client.chat.completions,
+        "create",
+        return_value=_mock_response(""),
+    ):
+        assert enricher_instance.summarize_content("Texto largo") == "Texto largo"
+
+
 def test_summarize_content_empty_text_skips_api(enricher_instance):
     """Un resumen de texto vacío no llega a consultar a la API."""
     with patch.object(
