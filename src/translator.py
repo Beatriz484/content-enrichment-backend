@@ -81,6 +81,11 @@ class DeepTranslateService:
 
         return "\n".join(translated_paragraphs)
 
+    def show_translation(self, translated_text, title="CONTENIDO TRADUCIDO"):
+        """Muestra la traducción en la terminal con el formato de la CLI."""
+        print(f"=== {title} ===")
+        print(f"{translated_text}\n")
+
     def _translate_chunk(self, chunk, target_code):
         """Traduce un trozo y cambia los errores técnicos por mensajes claros."""
         try:
