@@ -85,19 +85,19 @@ class ContentPipeline:
         """
         try:
             scraper = WikipediaScraper(tema)
-            resultado = scraper.extraer_contenido()
+            resultado = scraper.extract_content()
         except (ValueError, ConnectionError) as error:
             logger.error("Wikipedia: %s", error)
             raise
 
-        parrafos = resultado["parrafos"]
+        parrafos = resultado["paragraphs"]
         logger.info(
             "Wikipedia: extraídos %s párrafos de '%s'.",
             len(parrafos),
-            resultado["titulo"],
+            resultado["title"],
         )
         return {
-            "titulo": resultado["titulo"],
+            "titulo": resultado["title"],
             "parrafos": parrafos,
             "texto": "\n\n".join(parrafos),
         }

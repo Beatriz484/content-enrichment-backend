@@ -11,8 +11,8 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-API_BUSQUEDA = "https://es.wikipedia.org/w/api.php"
-MAX_PARRAFOS = 5
+SEARCH_API_URL = "https://es.wikipedia.org/w/api.php"
+MAX_PARAGRAPHS = 5
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -25,18 +25,18 @@ class WikipediaScraper:
     Cumple con el principio de responsabilidad única (SRP).
     """
 
-    def __init__(self, tema: str):
-        if not tema or not tema.strip():
+    def __init__(self, topic: str):
+        if not topic or not topic.strip():
             raise ValueError("El tema de búsqueda no puede estar vacío.")
-        self.tema = tema.strip()
+        self.topic = topic.strip()
         self.base_url = "https://es.wikipedia.org/wiki/"
 
-    def _construir_url(self, titulo: Optional[str] = None) -> str:
+    def _build_url(self, title: Optional[str] = None) -> str:
         """Construye la URL del artículo a partir del tema o de un título alternativo."""
-        referencia = titulo if titulo else self.tema
-        return self.base_url + referencia.replace(" ", "_")
+        reference = title if title else self.topic
+        return self.base_url + reference.replace(" ", "_")
 
-    def _obtener_respuesta(self, url: str, params: Optional[dict] = None) -> Optional[requests.Response]:
+    def _get_response(self, url: str, params: Optional[dict] = None) -> Optional[requests.Response]:
         """Realiza la petición y devuelve la respuesta, o ``None`` si es un 404.
 
         Raises:
@@ -57,81 +57,81 @@ class WikipediaScraper:
 
         return response
 
-    def _buscar_titulo(self) -> Optional[str]:
+    def _search_title(self) -> Optional[str]:
         """Busca en Wikipedia el artículo más relevante para el tema (respaldo del 404)."""
         params = {
             "action": "query",
             "list": "search",
-            "srsearch": self.tema,
+            "srsearch": self.topic,
             "format": "json",
             "utf8": "1",
         }
         try:
-            response = requests.get(API_BUSQUEDA, headers=HEADERS, timeout=10, params=params)
+            response = requests.get(SEARCH_API_URL, headers=HEADERS, timeout=10, params=params)
             response.raise_for_status()
-            resultados = response.json().get("query", {}).get("search", [])
+            results = response.json().get("query", {}).get("search", [])
         except (requests.exceptions.RequestException, ValueError) as error:
             raise ConnectionError(f"Error de conexión al buscar en Wikipedia: {error}")
 
-        if not resultados:
+        if not results:
             return None
-        return resultados[0].get("title")
+        return results[0].get("title")
 
     @staticmethod
-    def _extraer_titulo(soup: BeautifulSoup) -> Optional[str]:
-        titulo_tag = soup.find(id="firstHeading")
-        return titulo_tag.text.strip() if titulo_tag else None
+    def _extract_title(soup: BeautifulSoup) -> Optional[str]:
+        title_tag = soup.find(id="firstHeading")
+        return title_tag.text.strip() if title_tag else None
 
     @staticmethod
-    def _limpiar_texto(texto: str) -> str:
+    def _clean_text(text: str) -> str:
         """Normaliza el párrafo extraído.
 
         Wikipedia inserta espacios duros (``\\xa0``) y espacios repetidos que
         después se ven corruptos en el TXT/PDF, así que se normalizan en origen.
         """
-        return re.sub(r"\s+", " ", texto.replace("\xa0", " ")).strip()
+        return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
 
     @staticmethod
-    def _extraer_parrafos(soup: BeautifulSoup) -> list:
-        """Devuelve los primeros ``MAX_PARRAFOS`` párrafos con contenido del artículo."""
+    def _extract_paragraphs(soup: BeautifulSoup) -> list:
+        """Devuelve los primeros ``MAX_PARAGRAPHS`` párrafos con contenido del artículo."""
         content_div = soup.find(id="mw-content-text")
-        parrafos_html = content_div.find_all("p", recursive=True) if content_div else []
+        paragraphs_html = content_div.find_all("p", recursive=True) if content_div else []
 
-        parrafos = []
-        for paragraph in parrafos_html:
-            texto = WikipediaScraper._limpiar_texto(paragraph.get_text())
-            if texto:
-                parrafos.append(texto)
-            if len(parrafos) == MAX_PARRAFOS:
+        paragraphs = []
+        for paragraph in paragraphs_html:
+            text = WikipediaScraper._clean_text(paragraph.get_text())
+            if text:
+                paragraphs.append(text)
+            if len(paragraphs) == MAX_PARAGRAPHS:
                 break
-        return parrafos
+        return paragraphs
 
-    def extraer_contenido(self) -> dict:
+    def extract_content(self) -> dict:
         """Extrae título y primeros párrafos del artículo.
 
         Returns:
-            ``{"titulo": str, "parrafos": list[str]}``
+            ``{"title": str, "paragraphs": list[str]}``
 
         Raises:
             ValueError: Si el artículo no existe (tampoco en la búsqueda de respaldo).
             ConnectionError: Si falla la conexión con Wikipedia.
         """
-        titulo_alternativo = None
-        response = self._obtener_respuesta(self._construir_url())
+        alternative_title = None
+        response = self._get_response(self._build_url())
 
         # Respaldo: el tema no coincide con ningún artículo → se busca por texto
         if response is None:
-            titulo_alternativo = self._buscar_titulo()
-            if not titulo_alternativo:
-                raise ValueError(f"El artículo de Wikipedia para '{self.tema}' no existe.")
-            response = self._obtener_respuesta(self._construir_url(titulo_alternativo))
+            alternative_title = self._search_title()
+            if not alternative_title:
+                raise ValueError(f"El artículo de Wikipedia para '{self.topic}' no existe.")
+            response = self._get_response(self._build_url(alternative_title))
             if response is None:
-                raise ValueError(f"El artículo de Wikipedia para '{self.tema}' no existe.")
+                raise ValueError(f"El artículo de Wikipedia para '{self.topic}' no existe.")
 
         soup = BeautifulSoup(response.text, "html.parser")
-        titulo = self._extraer_titulo(soup) or titulo_alternativo or self.tema
+        title = self._extract_title(soup) or alternative_title or self.topic
 
         return {
-            "titulo": titulo,
-            "parrafos": self._extraer_parrafos(soup),
+            "title": title,
+            "paragraphs": self._extract_paragraphs(soup),
         }

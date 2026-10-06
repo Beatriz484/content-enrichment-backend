@@ -39,9 +39,9 @@ def _opciones(**cambios):
 @patch("src.pipeline.WikipediaScraper")
 def test_investigar_devuelve_titulo_parrafos_y_texto(mock_scraper):
     """La investigación normaliza la salida del scraper en un único diccionario."""
-    mock_scraper.return_value.extraer_contenido.return_value = {
-        "titulo": "Python",
-        "parrafos": ["Párrafo uno.", "Párrafo dos."],
+    mock_scraper.return_value.extract_content.return_value = {
+        "title": "Python",
+        "paragraphs": ["Párrafo uno.", "Párrafo dos."],
     }
 
     resultado = ContentPipeline().investigar("python")
@@ -53,7 +53,7 @@ def test_investigar_devuelve_titulo_parrafos_y_texto(mock_scraper):
 @patch("src.pipeline.WikipediaScraper")
 def test_investigar_propaga_el_error_del_scraper(mock_scraper):
     """Los errores del scraper (artículo inexistente) suben hasta la CLI."""
-    mock_scraper.return_value.extraer_contenido.side_effect = ValueError("no existe")
+    mock_scraper.return_value.extract_content.side_effect = ValueError("no existe")
 
     with pytest.raises(ValueError, match="no existe"):
         ContentPipeline().investigar("tema")
