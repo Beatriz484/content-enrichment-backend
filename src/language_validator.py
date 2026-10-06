@@ -101,3 +101,26 @@ def validate_language(user_input):
         f"El idioma '{user_input.strip()}' no existe o está mal escrito. "
         "Revisa la ortografía y escríbelo de nuevo (por ejemplo: alemán o de-DE)."
     )
+
+
+def ask_language(input_func=input, max_attempts=3):
+    """Pide el idioma de destino hasta que sea válido y devuelve su código.
+
+    Args:
+        input_func: Función que lee lo que escribe el usuario. Por defecto
+            ``input``; en los tests se cambia por una entrada simulada.
+        max_attempts: Número máximo de intentos.
+
+    Raises:
+        InvalidLanguageError: si se agotan los intentos.
+    """
+    for _ in range(max_attempts):
+        user_input = input_func("➤ Idioma de destino (ej. inglés, francés o en-GB): ")
+        try:
+            return validate_language(user_input)
+        except InvalidLanguageError as error:
+            print(f"⚠️  {error}")
+
+    raise InvalidLanguageError(
+        f"Has agotado los {max_attempts} intentos. Vuelve a empezar y escribe un idioma válido."
+    )
