@@ -14,7 +14,7 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 from .enricher import AiContentEnricher
-from .errors import ServicioNoDisponibleError
+from .errors import ServiceUnavailableError
 from .exporter import DocumentExporter
 from .logging_config import setup_logging
 from .scraper import WikipediaScraper
@@ -161,7 +161,7 @@ def translate_content(
     """Traduce el texto al idioma indicado y deja constancia en el log.
 
     Raises:
-        ServicioNoDisponibleError: mientras ``src/translator.py`` no esté entregado.
+        ServiceUnavailableError: mientras ``src/translator.py`` no esté entregado.
     """
     translated = translator.translate(text, language)
     logger.info("Traducción al idioma '%s' completada.", language)
@@ -283,7 +283,7 @@ def _run() -> int:
         try:
             translated = translate_content(DeepTranslateTranslator(), content, language)
             show_section(f"CONTENIDO TRADUCIDO ({language.upper()})", translated)
-        except ServicioNoDisponibleError as error:
+        except ServiceUnavailableError as error:
             print(f"⚠️  Traducción omitida: {error}")
             logger.warning("Traducción omitida: %s", error)
     else:

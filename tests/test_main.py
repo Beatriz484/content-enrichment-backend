@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.errors import ServicioNoDisponibleError
+from src.errors import ServiceUnavailableError
 from src.main import (
     _create_enricher,
     _setup_console,
@@ -51,7 +51,7 @@ def run_cli(
     )
     translator = MagicMock()
     if translation_error:
-        translator.translate.side_effect = ServicioNoDisponibleError(
+        translator.translate.side_effect = ServiceUnavailableError(
             "El módulo de traducción (DeepTranslate) aún no está implementado."
         )
     else:
