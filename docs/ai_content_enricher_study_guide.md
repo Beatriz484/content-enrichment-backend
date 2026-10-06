@@ -2,6 +2,22 @@
 
 Esta documentación recopila de manera integral la arquitectura, diseño, implementación, pruebas, análisis de dependencias estáticas y control de versiones del módulo `AiContentEnricher`, desarrollado dentro del proyecto backend `content-enrichment-backend`.
 
+> ### ⚠️ Estado actual tras la refactorización MVP
+>
+> Esta guía describe la primera versión del módulo. Los siguientes puntos han
+> cambiado y son los vigentes:
+>
+> | Antes | Ahora |
+> |---|---|
+> | `enrich_content` y `summarize_content` duplicaban el 95 % del código | Un único punto de llamada `_completar(instruccion, texto, max_tokens, temperatura)` |
+> | `except Exception: return text` (fallo silencioso) | Se propaga `AiError` (`src/errors.py`): el original nunca se hace pasar por enriquecido |
+> | Método privado `_is_valid_text` / `_adjust_length` | Funciones de módulo públicas `texto_valido` / `ajustar_longitud` (más fáciles de testear) |
+> | Modelo hardcodeado en la firma | Variable de entorno `AI_MODEL` con valor por defecto |
+> | `examples/demo_enricher_flow.py` | **Eliminado** (duplicaba la CLI). Diagnóstico en `scripts/check_models.py` |
+>
+> **Documentación vigente:** `README.md` (sección 🐛 Solución de problemas) y
+> `docs/historias_usuario.md` (HU-07).
+
 ---
 
 ## 1. Definición y Propósito del Sistema

@@ -1,88 +1,129 @@
+"""Tests del enriquecedor con IA (sin llamadas reales a la API)."""
 import pytest
 from unittest.mock import MagicMock, patch
-from src.enricher import AiContentEnricher
+
+from src.enricher import AiContentEnricher, ajustar_longitud, texto_valido
+from src.errors import AiError
 
 
 @pytest.fixture
 def enricher_instance():
-    """Fixture que devuelve una instancia con clave simulada."""
+    """Instancia con clave simulada."""
     return AiContentEnricher(api_key="sk-fake-test-key")
 
 
+def _respuesta(texto):
+    eleccion = MagicMock()
+    eleccion.message.content = texto
+    return MagicMock(choices=[eleccion])
+
+
+# --- Credenciales -----------------------------------------------------------
+
 def test_initialization_without_key(monkeypatch):
-    """Verifica que se lance ValueError si no existe API key."""
+    """Sin API key la construcción falla de forma explícita."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="API key not found"):
         AiContentEnricher(api_key=None)
 
 
-def test_is_valid_text(enricher_instance):
-    """Verifica la validación de texto vacío o incorrecto."""
-    assert enricher_instance._is_valid_text("Texto válido") is True
-    assert enricher_instance._is_valid_text("   ") is False
-    assert enricher_instance._is_valid_text("") is False
-    assert enricher_instance._is_valid_text(None) is False
+def test_initialization_con_base_url_y_modelo():
+    """La clave, la URL base y el modelo se pueden inyectar o leer del entorno."""
+    enricher = AiContentEnricher(api_key="sk-test", base_url="https://ejemplo/v1")
+
+    assert enricher.api_key == "sk-test"
+    assert enricher.base_url == "https://ejemplo/v1"
+    assert enricher.model
 
 
-def test_adjust_length(enricher_instance):
-    """Comprueba el recorte de seguridad según longitud máxima."""
+# --- Utilidades -------------------------------------------------------------
+
+def test_texto_valido():
+    """Un texto vacío o no cadena no es procesable."""
+    assert texto_valido("Texto válido") is True
+    assert texto_valido("   ") is False
+    assert texto_valido("") is False
+    assert texto_valido(None) is False
+
+
+def test_ajustar_longitud():
+    """Recorte de seguridad para no desbordar el contexto del modelo."""
     texto_largo = "a" * 15000
-    texto_recortado = enricher_instance._adjust_length(texto_largo, max_characters=10000)
-    assert len(texto_recortado) == 10000
+    assert len(ajustar_longitud(texto_largo, max_characters=10000)) == 10000
+    assert ajustar_longitud("corto") == "corto"
 
 
-def test_enrich_content_invalid_text(enricher_instance):
-    """Retorna el texto original si no es válido."""
-    assert enricher_instance.enrich_content("   ") == "   "
-
+# --- Enriquecimiento --------------------------------------------------------
 
 def test_enrich_content_success(enricher_instance):
-    """Comprueba la respuesta enriquecida exitosa usando mock."""
-    mock_choice = MagicMock()
-    mock_choice.message.content = "Texto enriquecido por IA"
-    mock_response = MagicMock(choices=[mock_choice])
-
+    """La respuesta enriquecida se devuelve limpia."""
     with patch.object(
         enricher_instance.client.chat.completions,
         "create",
-        return_value=mock_response,
+        return_value=_respuesta("  Texto enriquecido por IA  "),
     ):
-        resultado = enricher_instance.enrich_content("Texto base")
-        assert resultado == "Texto enriquecido por IA"
+        assert enricher_instance.enrich_content("Texto base") == "Texto enriquecido por IA"
 
 
-def test_enrich_content_fallback_error(enricher_instance):
-    """Comprueba la degradación elegante ante fallo de API."""
+def test_enrich_content_falla_de_api_lanza_error(enricher_instance):
+    """Regresión: antes devolvía el original haciéndose pasar por enriquecido."""
     with patch.object(
         enricher_instance.client.chat.completions,
         "create",
         side_effect=Exception("API Error 500"),
     ):
-        resultado = enricher_instance.enrich_content("Texto base")
-        assert resultado == "Texto base"
+        with pytest.raises(AiError, match="No se pudo contactar"):
+            enricher_instance.enrich_content("Texto base")
 
+
+def test_enrich_content_respuesta_vacia_lanza_error(enricher_instance):
+    """Una respuesta vacía de la API nunca se acepta como contenido."""
+    with patch.object(
+        enricher_instance.client.chat.completions,
+        "create",
+        return_value=_respuesta(""),
+    ):
+        with pytest.raises(AiError, match="respuesta vacía"):
+            enricher_instance.enrich_content("Texto base")
+
+
+def test_enrich_content_texto_vacio_lanza_error(enricher_instance):
+    """No se envía a la API un texto sin contenido."""
+    with pytest.raises(AiError, match="texto vacío"):
+        enricher_instance.enrich_content("   ")
+
+
+def test_enrich_content_recorta_entradas_demasiado_largas(enricher_instance):
+    """El texto se trunca antes de enviarlo para no desbordar el contexto."""
+    with patch.object(
+        enricher_instance.client.chat.completions,
+        "create",
+        return_value=_respuesta("ok"),
+    ) as mock_create:
+        enricher_instance.enrich_content("a" * 15000)
+
+    enviado = mock_create.call_args.kwargs["messages"][1]["content"]
+    assert len(enviado) < 11000
+
+
+# --- Resumen ----------------------------------------------------------------
 
 def test_summarize_content_success(enricher_instance):
-    """Comprueba el resumen exitoso usando mock."""
-    mock_choice = MagicMock()
-    mock_choice.message.content = "Resumen estructurado"
-    mock_response = MagicMock(choices=[mock_choice])
-
+    """El resumen estructurado se devuelve limpio."""
     with patch.object(
         enricher_instance.client.chat.completions,
         "create",
-        return_value=mock_response,
+        return_value=_respuesta("Resumen estructurado"),
     ):
-        resultado = enricher_instance.summarize_content("Texto largo")
-        assert resultado == "Resumen estructurado"
+        assert enricher_instance.summarize_content("Texto largo") == "Resumen estructurado"
 
 
-def test_summarize_content_fallback_error(enricher_instance):
-    """Comprueba la degradación elegante en el resumen ante fallos."""
+def test_summarize_content_falla_de_api_lanza_error(enricher_instance):
+    """El resumen también propaga el fallo en lugar de devolver el original."""
     with patch.object(
         enricher_instance.client.chat.completions,
         "create",
         side_effect=Exception("API Error 500"),
     ):
-        resultado = enricher_instance.summarize_content("Texto base resumen")
-        assert resultado == "Texto base resumen"
+        with pytest.raises(AiError, match="No se pudo contactar"):
+            enricher_instance.summarize_content("Texto largo")
