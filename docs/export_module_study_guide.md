@@ -99,7 +99,7 @@ Las cuatro primeras claves son **obligatorias**: forman el conjunto `REQUIRED_KE
 | Hay texto traducido | `3. CONTENIDO TRADUCIDO` |
 | Traductor pendiente | `3. CONTENIDO TRADUCIDO (PENDIENTE)` + nota explicativa |
 
-El diccionario lo construye `ContentPipeline.construir_content_data()` (`src/pipeline.py`), que es quien alimenta al exportador en el flujo real de la CLI.
+El diccionario lo construye `src/main.py` (`compose_body()` y `export_report()`), que es quien alimenta al exportador en el flujo real de la CLI.
 
 ---
 

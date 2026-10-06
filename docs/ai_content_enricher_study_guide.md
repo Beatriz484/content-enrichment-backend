@@ -9,11 +9,11 @@ Esta documentación recopila de manera integral la arquitectura, diseño, implem
 >
 > | Antes | Ahora |
 > |---|---|
-> | `enrich_content` y `summarize_content` duplicaban el 95 % del código | Un único punto de llamada `_completar(instruccion, texto, max_tokens, temperatura)` |
-> | `except Exception: return text` (fallo silencioso) | Se propaga `AiError` (`src/errors.py`): el original nunca se hace pasar por enriquecido |
-> | Método privado `_is_valid_text` / `_adjust_length` | Funciones de módulo públicas `texto_valido` / `ajustar_longitud` (más fáciles de testear) |
-> | Modelo hardcodeado en la firma | Variable de entorno `AI_MODEL` con valor por defecto |
-> | `examples/demo_enricher_flow.py` | **Eliminado** (duplicaba la CLI). Diagnóstico en `scripts/check_models.py` |
+> | `enrich_content` y `summarize_content` duplicaban el 95 % del código | Cada método conserva su propio prompt y sus parámetros de generación |
+> | `except Exception: return text` (fallo silencioso) | Sin cambios: el fallo se registra en el log (`IA no disponible`) y se devuelve el texto original sin interrumpir el flujo |
+> | Funciones de módulo `texto_valido` / `ajustar_longitud` | Métodos privados `_is_valid_text` / `_adjust_length` (la cobertura se prueba por el comportamiento público) |
+> | Modelo hardcodeado en la firma | Sin cambios: valor por defecto `openai/gpt-oss-120b` en la firma de cada método |
+> | `examples/demo_enricher_flow.py` y `scripts/check_models.py` | **Eliminados**: duplicaban la CLI o eran diagnóstico auxiliar |
 >
 > **Documentación vigente:** `README.md` (sección 🐛 Solución de problemas) y
 > `docs/historias_usuario.md` (HU-07).
