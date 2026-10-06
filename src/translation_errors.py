@@ -11,3 +11,7 @@ class TranslationServiceError(Exception):
 
 class InvalidLanguageError(TranslationServiceError):
     """El idioma escrito por el usuario no es válido."""
+
+
+class EmptyTextError(TranslationServiceError):
+    """No hay texto que traducir."""
