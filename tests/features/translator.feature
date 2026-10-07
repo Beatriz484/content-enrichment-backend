@@ -1,5 +1,5 @@
 # language: es
-Característica: Traducción del contenido con DeepTranslateService
+Característica: Traducción del contenido con DeepTranslateTranslator
   Como usuario del Content Enricher
   Quiero elegir un idioma de destino
   Para leer el contenido investigado y enriquecido en ese idioma

@@ -1,4 +1,4 @@
-"""Tests de DeepTranslateService (tests/features/translator.feature).
+"""Tests de DeepTranslateTranslator (tests/features/translator.feature).
 
 Nunca se llama a MyMemory de verdad: se simula (mock) el método
 ``_call_mymemory``, que es la única pieza que habla con la API.
@@ -18,13 +18,13 @@ from src.translation_errors import (
     TextTooLongError,
     TranslationTimeoutError,
 )
-from src.translator import DeepTranslateService
+from src.translator import DeepTranslateTranslator
 
 
 @pytest.fixture
 def service():
     """Servicio con el origen por defecto (es-ES) y sin email."""
-    return DeepTranslateService(email="")
+    return DeepTranslateTranslator(email="")
 
 
 def traduccion_falsa(texto, codigo):
@@ -37,7 +37,7 @@ def traduccion_falsa(texto, codigo):
 def test_traducir_una_frase_corta_al_idioma_elegido(service):
     """Escenario: Traducir una frase corta al idioma elegido."""
     with patch.object(
-        DeepTranslateService, "_call_mymemory", return_value="Hello, good morning."
+        DeepTranslateTranslator, "_call_mymemory", return_value="Hello, good morning."
     ) as api:
         resultado = service.translate("Hola, buenos días.", "inglés")
 
@@ -47,7 +47,7 @@ def test_traducir_una_frase_corta_al_idioma_elegido(service):
 
 def test_traducir_el_contenido_enriquecido_y_el_resumen(service):
     """Escenario: Traducir el contenido enriquecido y el resumen."""
-    with patch.object(DeepTranslateService, "_call_mymemory", side_effect=traduccion_falsa):
+    with patch.object(DeepTranslateTranslator, "_call_mymemory", side_effect=traduccion_falsa):
         enriquecido = service.translate("Contenido ampliado por la IA.", "francés")
         resumen = service.translate("Resumen corto.", "francés")
 
@@ -61,7 +61,7 @@ def test_traducir_un_texto_largo_dividido_en_trozos(service):
     assert len(texto) > 500
 
     with patch.object(
-        DeepTranslateService, "_call_mymemory", side_effect=traduccion_falsa
+        DeepTranslateTranslator, "_call_mymemory", side_effect=traduccion_falsa
     ) as api:
         resultado = service.translate(texto, "en-GB")
 
@@ -77,7 +77,7 @@ def test_traducir_un_texto_largo_dividido_en_trozos(service):
 
 def test_conservar_los_parrafos_del_texto(service):
     """Escenario: Conservar los párrafos del texto."""
-    with patch.object(DeepTranslateService, "_call_mymemory", side_effect=traduccion_falsa):
+    with patch.object(DeepTranslateTranslator, "_call_mymemory", side_effect=traduccion_falsa):
         resultado = service.translate("Primer párrafo.\n\nSegundo párrafo.", "inglés")
 
     assert resultado == "PRIMER PÁRRAFO.\n\nSEGUNDO PÁRRAFO."
@@ -95,7 +95,7 @@ def test_mostrar_la_traduccion_en_la_terminal(service, capsys):
 def test_enviar_a_mymemory_el_email_opcional_del_env(monkeypatch):
     """Escenario: Enviar a MyMemory el email opcional del .env."""
     monkeypatch.setenv("MYMEMORY_EMAIL", "alumno@ejemplo.com")
-    service = DeepTranslateService()
+    service = DeepTranslateTranslator()
 
     # Se simula la clase de la librería para comprobar con qué datos se crea
     with patch("src.translator.MyMemoryTranslator") as clase_falsa:
@@ -112,7 +112,7 @@ def test_enviar_a_mymemory_el_email_opcional_del_env(monkeypatch):
 
 def test_traducir_a_un_idioma_no_valido(service):
     """Escenario: Traducir a un idioma no válido."""
-    with patch.object(DeepTranslateService, "_call_mymemory") as api:
+    with patch.object(DeepTranslateTranslator, "_call_mymemory") as api:
         with pytest.raises(InvalidLanguageError, match="no existe o está mal escrito"):
             service.translate("Hola.", "klingon")
 
@@ -121,7 +121,7 @@ def test_traducir_a_un_idioma_no_valido(service):
 
 def test_traducir_un_texto_vacio(service):
     """Escenario: Traducir un texto vacío."""
-    with patch.object(DeepTranslateService, "_call_mymemory") as api:
+    with patch.object(DeepTranslateTranslator, "_call_mymemory") as api:
         with pytest.raises(EmptyTextError, match="No hay ningún texto que traducir"):
             service.translate("   ", "inglés")
 
@@ -130,7 +130,7 @@ def test_traducir_un_texto_vacio(service):
 
 def test_superar_el_limite_de_peticiones(service):
     """Escenario: Superar el límite de peticiones."""
-    with patch.object(DeepTranslateService, "_call_mymemory", side_effect=TooManyRequests()):
+    with patch.object(DeepTranslateTranslator, "_call_mymemory", side_effect=TooManyRequests()):
         with pytest.raises(RateLimitError, match="límite de peticiones"):
             service.translate("Hola.", "inglés")
 
@@ -138,7 +138,7 @@ def test_superar_el_limite_de_peticiones(service):
 def test_agotar_la_cuota_diaria_de_mymemory(service):
     """Escenario: Agotar la cuota diaria de MyMemory."""
     aviso = "MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY"
-    with patch.object(DeepTranslateService, "_call_mymemory", return_value=aviso):
+    with patch.object(DeepTranslateTranslator, "_call_mymemory", return_value=aviso):
         with pytest.raises(RateLimitError, match="cuota diaria"):
             service.translate("Hola.", "inglés")
 
@@ -146,7 +146,7 @@ def test_agotar_la_cuota_diaria_de_mymemory(service):
 def test_la_api_tarda_demasiado_en_responder(service):
     """Escenario: La API tarda demasiado en responder."""
     with patch.object(
-        DeepTranslateService, "_call_mymemory", side_effect=requests.exceptions.Timeout()
+        DeepTranslateTranslator, "_call_mymemory", side_effect=requests.exceptions.Timeout()
     ):
         with pytest.raises(TranslationTimeoutError, match="ha tardado demasiado"):
             service.translate("Hola.", "inglés")
@@ -155,7 +155,7 @@ def test_la_api_tarda_demasiado_en_responder(service):
 def test_no_hay_conexion_con_el_servicio_de_traduccion(service):
     """Escenario: No hay conexión con el servicio de traducción."""
     with patch.object(
-        DeepTranslateService,
+        DeepTranslateTranslator,
         "_call_mymemory",
         side_effect=requests.exceptions.ConnectionError(),
     ):
@@ -167,7 +167,7 @@ def test_un_fragmento_sin_espacios_demasiado_largo(service):
     """Escenario: Un fragmento sin espacios demasiado largo."""
     palabra = "a" * 600
     with patch.object(
-        DeepTranslateService, "_call_mymemory", side_effect=NotValidLength(palabra, 0, 500)
+        DeepTranslateTranslator, "_call_mymemory", side_effect=NotValidLength(palabra, 0, 500)
     ):
         with pytest.raises(TextTooLongError, match="demasiado largo"):
             service.translate(palabra, "inglés")
@@ -176,4 +176,4 @@ def test_un_fragmento_sin_espacios_demasiado_largo(service):
 def test_usar_auto_como_idioma_de_origen():
     """Escenario: Usar "auto" como idioma de origen."""
     with pytest.raises(InvalidLanguageError, match="no existe o está mal escrito"):
-        DeepTranslateService(source_language="auto")
+        DeepTranslateTranslator(source_language="auto")
