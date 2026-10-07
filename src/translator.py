@@ -37,7 +37,7 @@ DEFAULT_SOURCE_LANGUAGE = "es-ES"
 QUOTA_WARNING = "MYMEMORY WARNING"
 
 
-class DeepTranslateService:
+class DeepTranslateTranslator:
     """Traduce textos con MyMemory a través de deep_translator."""
 
     def __init__(self, source_language=DEFAULT_SOURCE_LANGUAGE, email=None):

@@ -1,4 +1,4 @@
-# Guía del servicio de traducción (DeepTranslateService)
+# Guía del servicio de traducción (DeepTranslateTranslator)
 
 Traduce el contenido enriquecido y el resumen al idioma que elige el usuario,
 usando `deep_translator` (`MyMemoryTranslator`). Solo traduce: no investiga,
@@ -10,7 +10,7 @@ Detalles de la librería: [deep_translator_research.md](deep_translator_research
 
 | Archivo | Qué contiene |
 |---|---|
-| `src/translator.py` | Clase `DeepTranslateService` (traducir y mostrar) |
+| `src/translator.py` | Clase `DeepTranslateTranslator` (traducir y mostrar) |
 | `src/language_validator.py` | Validación del idioma y `ask_language` |
 | `src/text_splitter.py` | `split_text`: trocea textos largos |
 | `src/translation_errors.py` | Errores propios del servicio |
@@ -18,9 +18,9 @@ Detalles de la librería: [deep_translator_research.md](deep_translator_research
 ## Interfaz (lo único de lo que deben depender los demás módulos)
 
 ```python
-from src.translator import DeepTranslateService
+from src.translator import DeepTranslateTranslator
 
-service = DeepTranslateService()            # origen "es-ES" por defecto
+service = DeepTranslateTranslator()  # origen "es-ES" por defecto
 texto_traducido = service.translate(texto, "inglés")
 ```
 
