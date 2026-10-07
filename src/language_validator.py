@@ -27,6 +27,25 @@ SPANISH_LANGUAGE_NAMES = {
     "coreano": "ko-KR",
     "arabe": "ar-SA",
 }
+# Códigos cortos (los que sugiere el menú del equipo) -> código que acepta MyMemory.
+# Algunos son ambiguos (en, pt, zh, ar): se elige uno por defecto.
+SHORT_LANGUAGE_CODES = {
+    "es": "es-ES",
+    "en": "en-GB",
+    "fr": "fr-FR",
+    "de": "de-DE",
+    "it": "it-IT",
+    "pt": "pt-PT",
+    "ca": "ca-ES",
+    "eu": "eu-ES",
+    "gl": "gl-ES",
+    "nl": "nl-NL",
+    "ru": "ru-RU",
+    "zh": "zh-CN",
+    "ja": "ja-JP",
+    "ko": "ko-KR",
+    "ar": "ar-SA",
+}
 
 # Letras con tilde (y la ñ) y la letra sencilla que las sustituye
 ACCENTED_LETTERS = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "ñ": "n"}
@@ -61,7 +80,11 @@ def find_language_code(user_input):
     if text in SPANISH_LANGUAGE_NAMES:
         return SPANISH_LANGUAGE_NAMES[text]
 
-    # 2. Nombre en inglés o código de MyMemory (coincidencia exacta)
+    # 2. Código corto de dos letras (en, fr...) -> código largo de MyMemory
+    if text in SHORT_LANGUAGE_CODES:
+        return SHORT_LANGUAGE_CODES[text]
+
+    # 3. Nombre en inglés o código de MyMemory (coincidencia exacta)
     for name, code in get_supported_languages().items():
         if text == normalize_language_input(name) or text == code.lower():
             return code
