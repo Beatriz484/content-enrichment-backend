@@ -1,3 +1,28 @@
+<div align="center">
+
+  <!-- Banner con efecto typing dinámico en tonos cyberpunk (verde neón y negro) -->
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&duration=3000&pause=1000&color=00FF66&center=true&vCenter=true&width=750&height=90&lines=CONTENT+ENRICHER+-+BACKEND;Wikipedia+Scraping+%E2%86%92+AI+Enrichment;Smart+Translation+%E2%86%92+PDF%2FTXT+Export;Automated+Knowledge+Pipeline" alt="Content Enricher Dynamic Banner" />
+
+  <p align="center">
+    <strong>Pipeline inteligente de extracción, enriquecimiento con IA y traducción multilingüe</strong>
+  </p>
+
+  <!-- Badges dinámicas del stack tecnológico -->
+  <p align="center">
+    <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+    <img src="https://img.shields.io/badge/OpenAI-ChatGPT_API-00A67E?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI" />
+    <img src="https://img.shields.io/badge/Wikipedia-Scraping-gray?style=for-the-badge&logo=wikipedia&logoColor=white" alt="Wikipedia" />
+    <img src="https://img.shields.io/badge/Deep_Translate-Multilingual-0052CC?style=for-the-badge&logo=google-translate&logoColor=white" alt="Translator" />
+    <img src="https://img.shields.io/badge/Pytest-100%25_Coverage-0A9EDC?style=for-the-badge&logo=pytest&logoColor=white" alt="Pytest" />
+  </p>
+
+  <!-- Flujo visual del pipeline del proyecto -->
+  <code>🌐 Wikipedia Scraper</code> ➜ <code>🤖 AI Enricher / Summarize</code> ➜ <code>🌍 Translator</code> ➜ <code>📄 PDF / TXT Exporter</code>
+
+</div>
+
+---
+
 # Content Enricher - Backend 🚀
 
 **Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema busca un tema en Wikipedia, extrae su contenido clave, lo enriquece y lo resume mediante Inteligencia Artificial, lo traduce a diferentes idiomas —siempre en ese orden y **la traducción como última petición**— y exporta **un único resultado**, el de la última etapa ejecutada, en formato `.txt` o `.pdf`.
