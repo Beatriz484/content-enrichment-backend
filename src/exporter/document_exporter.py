@@ -37,6 +37,7 @@ class DocumentExporter:
         file_path = os.path.join(self.output_dir, full_name)
 
         # 3. Capa de Proceso / Generación
+<<<<<<< HEAD
         try:
             if clean_format == "txt":
                 saved_path = TxtExporter.generate(file_path, content_data)
@@ -44,6 +45,14 @@ class DocumentExporter:
                 saved_path = PdfExporter.generate(file_path, content_data)
             else:
                 return False, f"Error: Formato '{clean_format}' no reconocido."
+=======
+        # La validación anterior garantiza que el formato es 'txt' o 'pdf'.
+        try:
+            if clean_format == "txt":
+                saved_path = TxtExporter.generate(file_path, content_data)
+            else:
+                saved_path = PdfExporter.generate(file_path, content_data)
+>>>>>>> dev
 
             return True, saved_path
 
