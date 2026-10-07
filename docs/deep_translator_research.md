@@ -33,7 +33,7 @@ y con una petición real.
   ```
 
   Además devuelve ese error **como si fuera la traducción** (respuesta 200).
-- **Decisión:** el idioma de origen es configurable en `DeepTranslateService`
+- **Decisión:** el idioma de origen es configurable en `DeepTranslateTranslator`
   y vale `es-ES` por defecto, porque el scraper lee de `es.wikipedia.org`.
 
 ## Límite de texto por petición

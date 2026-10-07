@@ -3,9 +3,9 @@
 Todos heredan de ``TranslationServiceError``. Así quien use el servicio puede
 capturar un solo tipo de error y enseñar el mensaje al usuario sin traceback.
 """
+from .errors import ServiceUnavailableError
 
-
-class TranslationServiceError(Exception):
+class TranslationServiceError(ServiceUnavailableError):
     """Base de todos los errores del servicio de traducción."""
 
 
