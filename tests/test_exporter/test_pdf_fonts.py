@@ -5,108 +5,108 @@ from src.exporter import pdf_fonts
 
 
 @pytest.fixture(autouse=True)
-def _cache_limpia():
+def _clean_cache():
     """Cada test decide si 'hay' fuente Unicode: se limpia la caché antes y después."""
-    pdf_fonts._buscar_fuente_unicode.cache_clear()
+    pdf_fonts._find_unicode_font.cache_clear()
     yield
-    pdf_fonts._buscar_fuente_unicode.cache_clear()
+    pdf_fonts._find_unicode_font.cache_clear()
 
 
 # --- Resolución de fuente ---------------------------------------------------
 
-def test_devuelve_none_cuando_no_hay_ninguna_ttf(monkeypatch):
+def test_returns_none_when_no_ttf_is_available(monkeypatch):
     """Sin fuente Unicode el sistema cae en el modo de normalización."""
-    monkeypatch.setattr(pdf_fonts, "FUENTES_CANDIDATAS", ("/ruta/que/no/existe.ttf",))
+    monkeypatch.setattr(pdf_fonts, "CANDIDATE_FONT_PATHS", ("/ruta/que/no/existe.ttf",))
 
-    assert pdf_fonts.fuente_unicode() is None
+    assert pdf_fonts.unicode_font() is None
 
 
-def test_registra_la_primera_fuente_disponible(monkeypatch):
+def test_registers_the_first_available_font(monkeypatch):
     """Se registra la primera TTF del sistema que se encuentra."""
-    monkeypatch.setattr(pdf_fonts, "FUENTES_CANDIDATAS", ("buena.ttf",))
-    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda ruta: True)
+    monkeypatch.setattr(pdf_fonts, "CANDIDATE_FONT_PATHS", ("buena.ttf",))
+    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda path: True)
     monkeypatch.setattr(pdf_fonts, "TTFont", lambda *args, **kwargs: object())
-    registrado = {}
+    registered = {}
     monkeypatch.setattr(
-        pdf_fonts.pdfmetrics, "registerFont", lambda fuente: registrado.setdefault("ok", fuente)
+        pdf_fonts.pdfmetrics, "registerFont", lambda font: registered.setdefault("ok", font)
     )
 
-    assert pdf_fonts.fuente_unicode() == pdf_fonts.NOMBRE_FUENTE
-    assert "ok" in registrado
+    assert pdf_fonts.unicode_font() == pdf_fonts.FONT_NAME
+    assert "ok" in registered
 
 
-def test_una_fuente_corrupta_no_tumba_el_proceso(monkeypatch):
+def test_a_broken_font_does_not_break_the_process(monkeypatch):
     """Si la TTF no se puede cargar se descarta y se sigue buscando."""
-    monkeypatch.setattr(pdf_fonts, "FUENTES_CANDIDATAS", ("mala.ttf",))
-    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda ruta: True)
+    monkeypatch.setattr(pdf_fonts, "CANDIDATE_FONT_PATHS", ("mala.ttf",))
+    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda path: True)
 
-    def _romper(*args, **kwargs):
+    def _raise(*args, **kwargs):
         raise ValueError("archivo corrupto")
 
-    monkeypatch.setattr(pdf_fonts, "TTFont", _romper)
+    monkeypatch.setattr(pdf_fonts, "TTFont", _raise)
 
-    assert pdf_fonts.fuente_unicode() is None
+    assert pdf_fonts.unicode_font() is None
 
 
-def test_la_fuente_se_memoriza(monkeypatch):
+def test_font_lookup_is_cached(monkeypatch):
     """La búsqueda se hace una sola vez por proceso."""
-    llamadas = []
-    monkeypatch.setattr(pdf_fonts, "FUENTES_CANDIDATAS", ("buena.ttf",))
-    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda ruta: llamadas.append(ruta) or True)
+    calls = []
+    monkeypatch.setattr(pdf_fonts, "CANDIDATE_FONT_PATHS", ("buena.ttf",))
+    monkeypatch.setattr(pdf_fonts.os.path, "isfile", lambda path: calls.append(path) or True)
     monkeypatch.setattr(pdf_fonts, "TTFont", lambda *args, **kwargs: object())
-    monkeypatch.setattr(pdf_fonts.pdfmetrics, "registerFont", lambda fuente: None)
+    monkeypatch.setattr(pdf_fonts.pdfmetrics, "registerFont", lambda font: None)
 
-    pdf_fonts.fuente_unicode()
-    pdf_fonts.fuente_unicode()
+    pdf_fonts.unicode_font()
+    pdf_fonts.unicode_font()
 
-    assert llamadas == ["buena.ttf"]
+    assert calls == ["buena.ttf"]
 
 
 # --- Limpieza y saneado ------------------------------------------------------
 
-def test_limpia_texto_real():
-    texto = "Camas tiene 11,66\xa0km²  y  espacios."
-    assert pdf_fonts.limpiar(texto) == "Camas tiene 11,66 km² y espacios."
+def test_clean_text_normalizes_real_text():
+    text = "Camas tiene 11,66\xa0km²  y  espacios."
+    assert pdf_fonts.clean_text(text) == "Camas tiene 11,66 km² y espacios."
 
 
-def test_limpia_normaliza_salto_de_windows():
-    assert pdf_fonts.limpiar("uno\r\ndos") == "uno\ndos"
+def test_clean_text_normalizes_windows_line_breaks():
+    assert pdf_fonts.clean_text("uno\r\ndos") == "uno\ndos"
 
 
-def test_sanear_quita_los_caracteres_que_helvetica_no_dibuja():
+def test_sanitize_text_removes_what_helvetica_cannot_draw():
     """Los diacríticos exóticos se reducen a su letra base y el emoji desaparece."""
-    saneado = pdf_fonts.sanear("mulĭer -ēris 🟢 km² — «texto»")
+    sanitized = pdf_fonts.sanitize_text("mulĭer -ēris 🟢 km² — «texto»")
 
-    assert "mulier" in saneado
-    assert "-eris" in saneado
-    assert "\U0001F7E2" not in saneado
+    assert "mulier" in sanitized
+    assert "-eris" in sanitized
+    assert "\U0001F7E2" not in sanitized
     # WinAnsi sí dibuja superíndices, rayas y comillas angulares
-    assert "km²" in saneado
-    assert "—" in saneado
-    assert "«texto»" in saneado
+    assert "km²" in sanitized
+    assert "—" in sanitized
+    assert "«texto»" in sanitized
     # El hueco que deja el emoji no se queda duplicado
-    assert "  " not in saneado
+    assert "  " not in sanitized
 
 
 # --- Preparación final -------------------------------------------------------
 
-def test_preparar_escapa_el_xml_para_que_no_se_coma_el_texto(monkeypatch):
+def test_prepare_text_escapes_xml_so_it_is_not_eaten(monkeypatch):
     """Regression: <tag> desaparecía del PDF porque Paragraph lo leía como etiqueta."""
-    monkeypatch.setattr(pdf_fonts, "fuente_unicode", lambda: None)
+    monkeypatch.setattr(pdf_fonts, "unicode_font", lambda: None)
 
-    assert pdf_fonts.preparar("5 < 10 y & <b>tag</b>") == (
+    assert pdf_fonts.prepare_text("5 < 10 y & <b>tag</b>") == (
         "5 &lt; 10 y &amp; &lt;b&gt;tag&lt;/b&gt;"
     )
 
 
-def test_preparar_convierte_saltos_en_etiquetas_de_linea(monkeypatch):
-    monkeypatch.setattr(pdf_fonts, "fuente_unicode", lambda: "MiFuente")
+def test_prepare_text_converts_line_breaks_into_line_tags(monkeypatch):
+    monkeypatch.setattr(pdf_fonts, "unicode_font", lambda: "MiFuente")
 
-    assert pdf_fonts.preparar("párrafo uno\npárrafo dos") == "párrafo uno<br/>párrafo dos"
+    assert pdf_fonts.prepare_text("párrafo uno\npárrafo dos") == "párrafo uno<br/>párrafo dos"
 
 
-def test_preparar_conserva_caracteres_exoticos_si_hay_fuente_unicode(monkeypatch):
+def test_prepare_text_keeps_exotic_characters_when_unicode_font_exists(monkeypatch):
     """Con TTF registrada no se toca el texto: es la solución al bug de ZapfDingbats."""
-    monkeypatch.setattr(pdf_fonts, "fuente_unicode", lambda: "MiFuente")
+    monkeypatch.setattr(pdf_fonts, "unicode_font", lambda: "MiFuente")
 
-    assert pdf_fonts.preparar("del latín mulĭer, -ēris") == "del latín mulĭer, -ēris"
+    assert pdf_fonts.prepare_text("del latín mulĭer, -ēris") == "del latín mulĭer, -ēris"

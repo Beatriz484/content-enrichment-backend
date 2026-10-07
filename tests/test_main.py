@@ -7,6 +7,7 @@ from src.errors import ServiceUnavailableError
 from src.main import (
     _create_enricher,
     _setup_console,
+    ask_choice,
     ask_format,
     ask_text,
     confirm,
@@ -165,6 +166,14 @@ def test_ask_format_retries_until_valid(capsys):
         assert ask_format() == "txt"
 
     assert "Formato no válido" in capsys.readouterr().out
+
+
+def test_ask_choice_retries_until_valid_option(capsys):
+    """La elección entre original y enriquecido vuelve a preguntar si no es 1 ni 2."""
+    with patch("builtins.input", side_effect=["3", "2"]):
+        assert ask_choice("➤ Elige una opción (1 / 2): ", ("1", "2")) == "2"
+
+    assert "Opción no válida" in capsys.readouterr().out
 
 
 # --- Resultado único del informe -----------------------------------------------
