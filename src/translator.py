@@ -91,9 +91,13 @@ class DeepTranslateTranslator:
         try:
             translated = self._call_mymemory(chunk, target_code)
         except TooManyRequests:
+            # MyMemory devuelve el 429 por cuota diaria, no por ráfaga: esperar
+            # unos minutos no lo resuelve, así que el aviso debe decirlo claro.
             raise RateLimitError(
                 "Se ha superado el límite de peticiones de MyMemory. "
-                "Espera unos minutos y vuelve a intentarlo."
+                "Es una cuota diaria que se reinicia al día siguiente, no en "
+                "minutos: inténtalo mañana o añade MYMEMORY_EMAIL en el "
+                "archivo .env para subirla a 50.000 caracteres."
             )
         except requests.exceptions.Timeout:
             raise TranslationTimeoutError(
@@ -113,8 +117,10 @@ class DeepTranslateTranslator:
 
         if translated.startswith(QUOTA_WARNING):
             raise RateLimitError(
-                "Se ha agotado la cuota diaria gratuita de MyMemory. "
-                "Inténtalo mañana o añade MYMEMORY_EMAIL en el archivo .env."
+                "Se ha agotado la cuota diaria gratuita de MyMemory "
+                "(5.000 caracteres sin email). Se reinicia al día siguiente: "
+                "inténtalo mañana o añade MYMEMORY_EMAIL en el archivo .env "
+                "para subirla a 50.000 caracteres."
             )
         return translated
 
