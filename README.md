@@ -295,3 +295,70 @@ MYMEMORY_EMAIL=tu_correo@example.com
 | El PDF sale con caracteres raros | Fuente sin cobertura Unicode | Resuelto: `src/exporter/pdf_fonts.py` registra una TTF del sistema |
 | El TXT se abre con tildes rotas en Windows | Falta el BOM UTF-8 | Resuelto: se escribe con `utf-8-sig` |
 | "Traducción omitida" | Cuota diaria de MyMemory agotada (5.000 caracteres/día) | Espera a que se reinicie o añade `MYMEMORY_EMAIL` en `.env` (50.000/día) |
+
+## 👥 Equipo de Desarrollo
+
+<div align="center">
+
+<table style="border-collapse: collapse; text-align: center;">
+  <thead>
+    <tr>
+      <th align="center" width="20%">
+        <a href="https://github.com/oscarperezGR">
+          <img src="https://github.com/oscarperezGR.png" width="90" height="90" style="border-radius: 50%; object-fit: cover;" alt="Óscar Pérez" />
+        </a><br>
+        <sub><b>Óscar Pérez</b></sub>
+      </th>
+      <th align="center" width="20%">
+        <a href="https://github.com/Beatriz484">
+          <img src="https://github.com/Beatriz484.png" width="90" height="90" style="border-radius: 50%; object-fit: cover;" alt="Beatriz Íñiguez" />
+        </a><br>
+        <sub><b>Beatriz Íñiguez</b></sub>
+      </th>
+      <th align="center" width="20%">
+        <a href="https://github.com/simonlopez25">
+          <img src="https://github.com/simonlopez25.png" width="90" height="90" style="border-radius: 50%; object-fit: cover;" alt="Simón López" />
+        </a><br>
+        <sub><b>Simón López</b></sub>
+      </th>
+      <th align="center" width="20%">
+        <a href="https://github.com/apariciodiazpatricia-cell">
+          <img src="https://github.com/apariciodiazpatricia-cell.png" width="90" height="90" style="border-radius: 50%; object-fit: cover;" alt="Patricia Aparicio" />
+        </a><br>
+        <sub><b>Patricia Aparicio</b></sub>
+      </th>
+      <th align="center" width="20%">
+        <a href="https://github.com/margaritabellidoroig">
+          <img src="https://github.com/margaritabellidoroig.png" width="90" height="90" style="border-radius: 50%; object-fit: cover;" alt="Margarita Bellido" />
+        </a><br>
+        <sub><b>Margarita Bellido</b></sub>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center" valign="middle">
+        <a href="https://github.com/oscarperezGR"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white" /></a><br>
+        <a href="https://www.linkedin.com/in/oscareduardoperezrodriguez/"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/Beatriz484"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white" /></a><br>
+        <a href="https://www.linkedin.com/in/beatriz-iniguez-cascales-dev/"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/simonlopez25"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white" /></a><br>
+        <a href="https://www.linkedin.com/in/simon-lopez25/"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/apariciodiazpatricia-cell"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white" /></a><br>
+        <a href="https://www.linkedin.com/in/patriciaapariciodiaz/"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://github.com/margaritabellidoroig"><img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white" /></a><br>
+        <img src="https://img.shields.io/badge/Rol-Developer-333333?style=flat-square" />
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
