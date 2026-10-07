@@ -1,5 +1,6 @@
 # Runtime
 beautifulsoup4==4.14.3
+deep-translator==1.11.4
 openai==3.24.0
 python-dotenv==1.2.3
 reportlab==5.0.1

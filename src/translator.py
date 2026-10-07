@@ -1,27 +1,128 @@
-"""Traducción de contenido (HU-04).
+"""Servicio de traducción del Content Enricher.
 
-Módulo **aún no implementado** por el equipo. Aquí se fija el contrato que la
-pipeline ya espera, de modo que cuando se integre la API de DeepTranslate solo
-haya que entregar la clase a ``ContentPipeline(translator=...)`` sin tocar ni
-la matriz de control ni la CLI.
+Traduce el contenido enriquecido y el resumen al idioma elegido por el
+usuario usando la librería ``deep_translator`` (clase ``MyMemoryTranslator``).
 
-Contrato:
+Responsabilidad única: este módulo solo traduce. No investiga, no enriquece
+y no exporta.
+
+Interfaz pública:
 
     translate(text: str, target_language: str) -> str
 """
-from .errors import ServicioNoDisponibleError
+import os
+
+import requests
+from deep_translator import MyMemoryTranslator
+from deep_translator.exceptions import NotValidLength, RequestError, TooManyRequests
+from dotenv import load_dotenv
+
+from .language_validator import validate_language
+from .text_splitter import MAX_CHARS_PER_CHUNK, split_text
+from .translation_errors import (
+    EmptyTextError,
+    NoConnectionError,
+    RateLimitError,
+    TextTooLongError,
+    TranslationTimeoutError,
+)
+
+# Carga las variables del archivo .env (si existe)
+load_dotenv()
+
+# Idioma de origen por defecto: el scraper lee de es.wikipedia.org
+DEFAULT_SOURCE_LANGUAGE = "es-ES"
+
+# Con la cuota diaria agotada, MyMemory devuelve este aviso en lugar de la traducción
+QUOTA_WARNING = "MYMEMORY WARNING"
 
 
 class DeepTranslateTranslator:
-    """Traductor con la interfaz acordada. Implementación pendiente."""
+    """Traduce textos con MyMemory a través de deep_translator."""
 
-    def translate(self, text: str, target_language: str) -> str:
-        """Traduce ``text`` al idioma ``target_language``.
+    def __init__(self, source_language=DEFAULT_SOURCE_LANGUAGE, email=None):
+        """
+        Args:
+            source_language: Código del idioma de origen (por defecto "es-ES").
+            email: Email opcional para MyMemory. Sube el límite diario de uso.
+                Si no se pasa, se lee MYMEMORY_EMAIL del .env.
+        """
+        # Se valida también el origen: MyMemory no acepta "auto"
+        self.source_language = validate_language(source_language)
+        # Si no hay email, queda en None y MyMemory funciona igual
+        self.email = email or os.getenv("MYMEMORY_EMAIL") or None
+
+    def translate(self, text, target_language):
+        """Traduce ``text`` al idioma ``target_language`` y devuelve el resultado.
+
+        Se usa igual para el contenido enriquecido y para el resumen.
+
+        Args:
+            text: Texto a traducir. Puede ser largo: se trocea automáticamente.
+            target_language: Nombre (español o inglés) o código del idioma.
 
         Raises:
-            ServicioNoDisponibleError: mientras la integración con DeepTranslate
-                no esté entregada. Nunca devuelve una cadena vacía en silencio.
+            InvalidLanguageError: el idioma no es válido.
+            EmptyTextError: el texto está vacío.
+            RateLimitError, TranslationTimeoutError, NoConnectionError,
+            TextTooLongError: falló la llamada a MyMemory.
         """
-        raise ServicioNoDisponibleError(
-            "El módulo de traducción (DeepTranslate) aún no está implementado."
+        target_code = validate_language(target_language)
+        if text is None or text.strip() == "":
+            raise EmptyTextError("No hay ningún texto que traducir.")
+
+        # Se traduce párrafo a párrafo para conservar los saltos de línea
+        translated_paragraphs = []
+        for paragraph in text.split("\n"):
+            translated_chunks = []
+            for chunk in split_text(paragraph, MAX_CHARS_PER_CHUNK):
+                translated_chunks.append(self._translate_chunk(chunk, target_code))
+            translated_paragraphs.append(" ".join(translated_chunks))
+
+        return "\n".join(translated_paragraphs)
+
+    def show_translation(self, translated_text, title="CONTENIDO TRADUCIDO"):
+        """Muestra la traducción en la terminal con el formato de la CLI."""
+        print(f"=== {title} ===")
+        print(f"{translated_text}\n")
+
+    def _translate_chunk(self, chunk, target_code):
+        """Traduce un trozo y cambia los errores técnicos por mensajes claros."""
+        try:
+            translated = self._call_mymemory(chunk, target_code)
+        except TooManyRequests:
+            raise RateLimitError(
+                "Se ha superado el límite de peticiones de MyMemory. "
+                "Espera unos minutos y vuelve a intentarlo."
+            )
+        except requests.exceptions.Timeout:
+            raise TranslationTimeoutError(
+                "El servicio de traducción ha tardado demasiado en responder. "
+                "Inténtalo de nuevo más tarde."
+            )
+        except (requests.exceptions.ConnectionError, RequestError):
+            raise NoConnectionError(
+                "No se ha podido conectar con el servicio de traducción. "
+                "Revisa tu conexión a internet."
+            )
+        except NotValidLength:
+            raise TextTooLongError(
+                "El texto tiene un fragmento sin espacios demasiado largo para "
+                "traducirlo (MyMemory admite menos de 500 caracteres por petición)."
+            )
+
+        if translated.startswith(QUOTA_WARNING):
+            raise RateLimitError(
+                "Se ha agotado la cuota diaria gratuita de MyMemory. "
+                "Inténtalo mañana o añade MYMEMORY_EMAIL en el archivo .env."
+            )
+        return translated
+
+    def _call_mymemory(self, text, target_code):
+        """Única llamada a la librería. Si cambia el proveedor, solo se toca aquí."""
+        translator = MyMemoryTranslator(
+            source=self.source_language,
+            target=target_code,
+            email=self.email,
         )
+        return translator.translate(text)
