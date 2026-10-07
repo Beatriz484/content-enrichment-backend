@@ -172,3 +172,14 @@ Característica: Traducción del contenido con DeepTranslateService
     Dado que el usuario escribe "3spañol", "123" y ""
     Cuando se le pide el idioma con 3 intentos
     Entonces se muestra el error "Has agotado los 3 intentos"
+
+@exitoso
+Esquema del escenario: Un código corto se convierte al código de MyMemory
+  Cuando valido el idioma "<entrada>"
+  Entonces obtengo el código "<codigo>"
+
+  Ejemplos:
+    | entrada | codigo |
+    | en      | en-GB  |
+    | fr      | fr-FR  |
+    | EN      | en-GB  |

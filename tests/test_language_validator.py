@@ -82,3 +82,18 @@ def test_agotar_los_intentos():
     """Escenario: Agotar los intentos."""
     with pytest.raises(InvalidLanguageError, match="Has agotado los 3 intentos"):
         ask_language(input_func=entrada_simulada(["3spañol", "123", ""]), max_attempts=3)
+
+@pytest.mark.parametrize("entrada, esperado", [
+    ("en", "en-GB"),
+    ("fr", "fr-FR"),
+    ("EN ", "en-GB"),
+    ("Fr", "fr-FR"),
+    ("pt", "pt-PT"),
+])
+def test_codigo_corto_se_convierte_al_codigo_de_mymemory(entrada, esperado):
+    assert validate_language(entrada) == esperado
+
+
+def test_codigo_corto_inexistente_da_error():
+    with pytest.raises(InvalidLanguageError):
+        validate_language("xx")
