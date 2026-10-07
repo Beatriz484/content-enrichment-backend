@@ -61,6 +61,15 @@ def confirm(message: str, default: bool = True) -> bool:
         print("⚠️  Responde 'sí' o 'no'.")
 
 
+def ask_choice(message: str, options: Tuple[str, ...]) -> str:
+    """Pide al usuario seleccionar una opción válida."""
+    while True:
+        answer = input(message).strip()
+        if answer in options:
+            return answer
+        print(f"⚠️  Opción no válida. Por favor, introduce una de: {', '.join(options)}.")
+
+
 def ask_language() -> Optional[str]:
     """Pide el idioma de traducción. ``Enter`` mantiene el idioma original."""
     answer = input("➤ Idioma de traducción (ej. en, fr — Enter = original): ").strip()
@@ -228,6 +237,16 @@ def _run() -> int:
         print("[2/5] Enriqueciendo el contenido con IA...")
         enriched = enrich_content(enricher, research["text"])
         show_section("CONTENIDO ENRIQUECIDO (IA)", enriched)
+
+        print("¿Deseas conservar el contenido enriquecido por IA o el original de Wikipedia?")
+        print("  1. Texto original de Wikipedia")
+        print("  2. Contenido enriquecido por IA")
+
+        if ask_choice("➤ Elige una opción (1 / 2): ", ("1", "2")) == "1":
+            enriched = research["text"]
+            print("✓ Se mantendrá el texto original de Wikipedia.\n")
+        else:
+            print("✓ Se continuará con el contenido enriquecido por IA.\n")
     else:
         enriched = ""
         print("[2/5] Enriquecimiento omitido: no hay credenciales de IA.")
