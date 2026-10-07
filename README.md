@@ -1,6 +1,6 @@
 # Content Enricher - Backend 🚀
 
-**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema permite buscar un tema en Wikipedia, extraer su contenido clave, enriquecerlo y resumirlo mediante Inteligencia Artificial, traducirlo a diferentes idiomas y exportar **únicamente la variante solicitada** en formato `.txt` o `.pdf`.
+**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema busca un tema en Wikipedia, extrae su contenido clave, lo enriquece y lo resume mediante Inteligencia Artificial, lo traduce a diferentes idiomas —siempre en ese orden y **la traducción como última petición**— y exporta **un único resultado**, el de la última etapa ejecutada, en formato `.txt` o `.pdf`.
 
 ---
 
@@ -26,15 +26,10 @@ content-enrichment-backend/
 │   ├── historias_usuario.md
 │   ├── flowchart.png
 │   └── img.png
-├── scripts/
-│   └── check_models.py           # Diagnóstico de la conexión con la API de IA
 ├── src/                          # Código fuente principal
 │   ├── __init__.py
-│   ├── errors.py                 # Jerarquía de errores controlados del dominio
-│   ├── options.py                # Esquema de opciones + matriz de validación
-│   ├── prompts.py                # Formulario de opciones (solo diálogo con el usuario)
-│   ├── main.py                   # Orquestador de la CLI (entrada/salida)
-│   ├── pipeline.py               # ContentPipeline: matriz de control del flujo
+│   ├── main.py                   # CLI: diálogo con el usuario y orquestación del flujo
+│   ├── errors.py                 # Errores controlados del dominio
 │   ├── logging_config.py         # Logging a consola y a logs/app.log
 │   ├── scraper.py                # Extracción desde Wikipedia (con búsqueda de respaldo)
 │   ├── enricher.py               # Enriquecimiento y resúmenes con IA
@@ -48,20 +43,16 @@ content-enrichment-backend/
 ├── tests/                        # Suite de pruebas automáticas
 │   ├── features/                 # Escenarios Gherkin
 │   │   ├── scraper.feature
-│   │   ├── options_matrix.feature
 │   │   └── export.feature
 │   ├── test_exporter/
-│   ├── test_options.py           # Esquema y matriz de validación
-│   ├── test_matrix.py            # Las 8 combinaciones de salida
-│   ├── test_options_matrix_bdd.py
 │   ├── test_export_bdd.py
-│   ├── test_pipeline.py
-│   ├── test_prompts.py
+│   ├── test_main.py              # Flujo completo de la CLI (sin red ni IA real)
+│   ├── test_scraper.py
+│   ├── test_enricher.py
 │   ├── test_translator.py
 │   └── ...
 ├── .pre-commit-config.yaml
-├── requirements.txt              # Dependencias de ejecución
-├── requirements-dev.txt          # Dependencias de desarrollo
+├── requirements.txt              # Dependencias de ejecución y desarrollo
 └── README.md
 ```
 
@@ -95,11 +86,8 @@ python -m venv venv
 **3. Instalar dependencias**
 
 ```bash
-# Solo para ejecutar la aplicación
+# Incluye la aplicación, los tests, la cobertura y los hooks de git
 pip install -r requirements.txt
-
-# Para desarrollar (tests, cobertura y hooks de git)
-pip install -r requirements-dev.txt
 ```
 
 **4. Configurar variables de entorno**
@@ -112,69 +100,61 @@ OPENAI_BASE_URL=https://api.groq.com/openai/v1
 AI_MODEL=qwen/qwen3.8-27b
 ```
 
-> 💡 Puedes verificar la configuración con `python scripts/check_models.py`.
+> 💡 Si la IA no arranca, revisa que `.env` define `OPENAI_API_KEY` y
+> `OPENAI_BASE_URL`: la CLI lo comprueba al arrancar.
 
-> ⚠️ **Sin `OPENAI_API_KEY` la aplicación sigue funcionando**, pero solo para la
-> variante *texto original* y sin resumen. Si eliges "enriquecido" o "resumen"
-> sin credenciales, el sistema lo indica **antes** de hacer ninguna petición y
-> no genera ningún archivo.
-
----
-
-## 🎛️ Formulario de opciones de respuesta
-
-Al arrancar (`python -m src.main`) la CLI recorre este formulario:
-
-```text
-➤ Tema a investigar en Wikipedia
-➤ Modo de contenido
-   [1] Solo texto original (tal cual Wikipedia)
-   [2] Contenido enriquecido con IA
-➤ ¿Generar un resumen del contenido elegido? (sí/no)
-➤ Idioma de traducción (ej. en, fr — Enter = original)
-```
-
-Después de mostrar el resultado en terminal:
-
-```text
-¿Guardar el informe en disco? ➤ Formato (txt / pdf) ➤ Nombre del archivo
-```
+> ⚠️ **Sin `OPENAI_API_KEY` la aplicación sigue funcionando**: el flujo se
+> continúa solo con el texto original y la terminal avisa de que se omiten el
+> enriquecimiento y el resumen. No se genera ningún archivo a medias.
 
 ---
 
-## 🧭 Matriz de control de flujo
+## 🎛️ Flujo de la aplicación
 
-Las opciones se reducen a **dos ejes independientes** más una transformación final:
+Al arrancar (`python -m src.main`) la CLI pide **solo el tema** y arranca el
+proceso. Las decisiones restantes se preguntan **en el momento en que les toca**,
+siempre después de mostrar los resultados de la búsqueda:
 
-| Eje | Valores |
-|---|---|
-| **A · Modo de contenido** | `original` · `enriquecido` |
-| **B · Resumen** | `no` · `sí` |
-| **C · Idioma** | `ninguno` · `"xx"` (se aplica **siempre al final**) |
+```text
+➤ Tema a investigar en Wikipedia      (única pregunta inicial)
+[1/5] Buscando en Wikipedia      → título + 5 párrafos en pantalla
+[2/5] Enriquecimiento con IA     → contenido enriquecido en pantalla
+➤ ¿Generar un resumen del contenido con IA? (sí/no)
+[3/5] Resumen (extra)            → resumen con ChatGPT en pantalla
+➤ Idioma de traducción (ej. en, fr — Enter = original)   ← última petición
+[4/5] Traducción                 → contenido traducido en pantalla
+[5/5] Exportación                → ¿Guardar? ➤ formato (txt/pdf) ➤ nombre
+```
 
-Las 6 variaciones del documento de requisitos:
+Cada paso que no se ejecuta se indica explícitamente (sin IA, sin resumen
+solicitado o con el idioma original).
 
-| # | Caso | A | B | C | Contenido del archivo |
-|---|---|---|---|---|---|
-| 1 | Consulta simple | original | no | no | texto de Wikipedia |
-| 2 | Solo texto original | original | no | no | texto de Wikipedia |
-| 3 | Solo contenido enriquecido | enriquecido | no | no | texto enriquecido |
-| 4 | Solo resumen | cualquiera | **sí** | no | **solo** el resumen |
-| 5 | Enriquecido + resumen | enriquecido | **sí** | no | enriquecido **+** resumen |
-| 6 | Con traducción | cualquiera | cualquiera | **sí** | la variante ya traducida |
+---
 
-La implementación es una secuencia fija y sin condicionales anidados
-(`src/pipeline.py::procesar`):
+## 📦 Qué se exporta
+
+El informe contiene **un único resultado**: el último eslabón realmente
+generado de la cadena. No se pregunta qué partes guardar porque solo hay una
+respuesta posible:
 
 ```python
-base     = enriquecer(texto) if modo == ENRICHED else texto   # eje A
-cuerpo   = resumir(base) if resumir else base                 # eje B
-cuerpo   = traducir(cuerpo, idioma) if idioma else cuerpo     # eje C
+base      = enriquecer(texto)               # si hay credenciales de IA
+resumen   = resumir(base)                   # solo si se pidió
+traducido = traducir(resumen or base)       # solo si se pidió idioma
+final     = traducido or resumen or base or texto   # ← lo que se guarda
 ```
 
-> **Regla de exportación:** el archivo recibe **solo** `{"topic", "body"}`.
-> No puede incluir el texto original ni notas que no se pidieron: el
-> exportador no tiene acceso a nada más.
+| Parte del archivo | Contenido |
+|---|---|
+| `TÍTULO` | Título del artículo de Wikipedia |
+| Cuerpo | `final`: la traducción si existe; si no, el resumen, el contenido enriquecido o el texto original |
+
+El diálogo de exportación se reduce a tres decisiones: **¿Guardar?**, **formato**
+(`txt` / `pdf`) y **nombre** del archivo. El paquete `src/exporter/` recibe
+`{"topic", "body"}` y no tiene acceso a nada más.
+
+> **Regla de exportación:** el archivo recibe **solo** lo que el usuario pidió,
+> sin secciones adicionales ni notas no solicitadas.
 
 ---
 
@@ -220,7 +200,6 @@ exige el documento de requisitos:
 | Fichero | Contenido |
 |---|---|
 | `scraper.feature` | Extracción correcta y artículo inexistente |
-| `options_matrix.feature` | Las 6 variaciones (`@exitoso`) y sus rechazos (`@fallido`) |
 | `export.feature` | Exportación exclusiva (`@exitoso`) y validaciones (`@fallido`) |
 
 ---
@@ -233,12 +212,13 @@ python -m src.main
 
 ```text
 ➤ Tema a investigar en Wikipedia      (requerido)
-➤ Modo de contenido                  [1] original · [2] enriquecido
+[1/5] Wikipedia → título + 5 párrafos en pantalla
+[2/5] Enriquecimiento con IA → contenido enriquecido en pantalla
 ➤ ¿Generar un resumen?               (sí / no)
-➤ Idioma de traducción               (Enter = mantener idioma original)
-[1/3] Wikipedia → título + 5 párrafos en pantalla
-[2/3] Matriz de control → variante seleccionada en pantalla
-[3/3] Exportación → ¿Guardar? ➤ formato (txt / pdf) ➤ nombre
+[3/5] Resumen (extra) → resumen en pantalla
+➤ Idioma de traducción                (Enter = mantener idioma original)
+[4/5] Traducción → contenido traducido en pantalla
+[5/5] Exportación → ¿Guardar? ➤ formato (txt / pdf) ➤ nombre
 🟢 ESTADO: ÉXITO → output/<nombre>.<ext>
 ```
 
@@ -249,10 +229,12 @@ python -m src.main
 Cada ejecución registra el proceso completo en `logs/app.log`:
 
 ```text
-[2026-10-06 13:09:48] [INFO] src.prompts: Opciones capturadas: tema='camas', modo='original', resumen=False, idioma=original.
-[2026-10-06 13:09:48] [INFO] src.pipeline: Wikipedia: extraídos 5 párrafos de 'Camas'.
-[2026-10-06 13:09:48] [INFO] src.pipeline: Variante resuelta: 'original'.
-[2026-10-06 13:09:48] [INFO] __main__: Informe exportado a 'output\informe.txt'.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: tema='camas'.
+[2026-10-06 13:09:48] [INFO] src.main: Wikipedia: extraídos 5 párrafos de 'Camas'.
+[2026-10-06 13:09:48] [INFO] src.main: IA: contenido enriquecido generado.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: resumen=False.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: idioma=original.
+[2026-10-06 13:09:48] [INFO] src.main: Informe exportado a 'output\informe.txt'.
 ```
 
 La configuración vive en `src/logging_config.py` (`setup_logging()`).
@@ -261,18 +243,18 @@ La configuración vive en `src/logging_config.py` (`setup_logging()`).
 
 ## 🔌 Módulo de traducción (pendiente — HU-04)
 
-`src/translator.py` entrega el **contrato** que la pipeline ya consume:
+`src/translator.py` entrega el **contrato** que la CLI consume:
 
 ```python
 class DeepTranslateTranslator:
-    disponible = ...
     def translate(self, text: str, target_language: str) -> str: ...
 ```
 
-Mientras no esté implementado, pedir un idioma hace fallar la validación
-**antes** de procesar, con el mensaje: *"el módulo de traducción aún no está
-disponible"*. Para integrarlo: implementar `translate()` en esa clase y
-pasarla a `ContentPipeline(translator=DeepTranslateTranslator())`.
+Mientras no esté implementado, `translate()` lanza
+`ServiceUnavailableError` y la CLI lo informa con el mensaje
+*"Traducción omitida: el módulo de traducción (DeepTranslate) aún no está
+implementado"*, continuando con el contenido sin traducir. Para integrarlo:
+basta con implementar `translate()` en esa clase, sin tocar el resto del flujo.
 
 ---
 
@@ -280,7 +262,7 @@ pasarla a `ContentPipeline(translator=DeepTranslateTranslator())`.
 
 | Síntoma | Causa | Solución |
 |---|---|---|
-| "No enriqueció nada" | Falta `.env` con `OPENAI_API_KEY` | `python scripts/check_models.py` |
+| "No enriqueció nada" | Falta `.env` con `OPENAI_API_KEY` | Revisa `.env` (`OPENAI_API_KEY` y `OPENAI_BASE_URL`) |
 | El PDF sale con caracteres raros | Fuente sin cobertura Unicode | Resuelto: `src/exporter/pdf_fonts.py` registra una TTF del sistema |
 | El TXT se abre con tildes rotas en Windows | Falta el BOM UTF-8 | Resuelto: se escribe con `utf-8-sig` |
-| "el módulo de traducción no está disponible" | HU-04 sin entregar | Comportamiento esperado hasta que el equipo la integre |
+| "Traducción omitida" | HU-04 sin entregar | Comportamiento esperado hasta que el equipo la integre |

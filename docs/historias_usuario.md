@@ -19,25 +19,23 @@
 
 ---
 
-## Historia de Usuario: Formulario de Opciones de Respuesta y Matriz de Control
+## Historia de Usuario: Interacción por etapas y resultado único de exportación
 
 * **ID:** HU-02
-* **Título:** Elegir exactamente qué salida se quiere recibir.
+* **Título:** Cada decisión en su momento, un solo resultado al final.
 * **Prioridad:** Alta
 * **Estado:** Entregada
 * **Historia de Usuario:**
-  > Como usuario del sistema, quiero elegir el modo de contenido (texto original o enriquecido), si deseo resumen y a qué idioma traducir, para recibir exactamente la salida que pedí y nada más.
+  > Como usuario del sistema, quiero indicar primero el tema y que cada decisión (resumen e idioma) se me pregunte en el momento en que le toca, para recibir un único resultado final con lo último que he pedido y nada más.
 
 ### Criterios de Aceptación:
-- [x] La CLI solicita tema, modo de contenido, resumen e idioma antes de empezar (`src/prompts.py`).
-- [x] El esquema de datos está modelado con un `dataclass` inmutable en `src/options.py`.
-- [x] La validación devuelve **todos** los errores a la vez, no solo el primero.
-- [x] La validación se ejecuta **antes** de cualquier petición a la red.
-- [x] La matriz cubre las 6 variaciones del documento: consulta simple, solo original, solo enriquecido, solo resumen, enriquecido + resumen y cualquiera de ellas traducida.
-- [x] El orden del procesamiento es fijo: `base → resumen → traducción` (`src/pipeline.py::procesar`).
-- [x] El archivo exportado contiene **exclusivamente** el título y la variante pedida.
-- [x] Pedir IA sin credenciales o traducción sin módulo es un rechazo explícito, nunca una degradación silenciosa.
-- [x] Validado con `tests/test_options.py`, `tests/test_matrix.py` y `tests/features/options_matrix.feature` (escenarios `@exitoso` y `@fallido`).
+- [x] La CLI pide **solo el tema** al arrancar; el resumen se pregunta tras ver el contenido enriquecido y el idioma justo antes de traducir (la **última petición**). El diálogo vive en `src/main.py`.
+- [x] La extracción de Wikipedia se muestra en terminal **antes** de solicitar cualquier acción adicional.
+- [x] Cada pregunta repite la entrada hasta recibir un valor válido (texto no vacío, sí/no, formato `txt`/`pdf`).
+- [x] El orden del procesamiento es fijo: `base → resumen → traducción`, y la traducción se aplica **siempre al final**.
+- [x] El archivo exportado contiene **exclusivamente** el título y el resultado final (traducción, resumen, contenido enriquecido o texto original): no se eligen secciones.
+- [x] Sin credenciales de IA la CLI avisa y continúa con el texto original; sin traductor entregado avisa y omite la traducción: nunca una degradación silenciosa.
+- [x] Validado con `tests/test_main.py` (sin red ni IA real).
 
 ---
 
@@ -47,14 +45,14 @@
 * **Título:** Investigar, procesar y exportar en un solo flujo.
 * **Prioridad:** Alta
 * **Historia de Usuario:**
-  > Como usuario del sistema, quiero introducir un tema en la terminal para obtener un informe final en `.txt` o `.pdf` con exactamente la variante que he elegido, sin salir de la aplicación.
+  > Como usuario del sistema, quiero introducir un tema en la terminal para obtener un informe final en `.txt` o `.pdf` con el resultado de lo que he pedido, sin salir de la aplicación.
 
 ### Criterios de Aceptación:
-- [x] La CLI solicita las opciones del formulario antes de empezar.
+- [x] La CLI solicita solo el tema al empezar; resumen e idioma se preguntan en su momento, tras mostrar la búsqueda.
 - [x] Muestra los resultados de Wikipedia en la terminal antes de pedir acciones adicionales.
-- [x] Muestra cada paso realmente ejecutado (enriquecido, resumen, traducido).
-- [x] Pregunta si se desea guardar, el formato (`txt`/`pdf`) y el nombre del archivo (⭐).
-- [x] La lógica vive en `src/pipeline.py`; `src/main.py` solo orquesta la entrada/salida.
+- [x] Muestra cada paso realmente ejecutado (enriquecido, resumen, traducido) e indica los pasos omitidos.
+- [x] Pregunta si desea guardar, el formato `txt`/`pdf` y el nombre del archivo (⭐); el archivo recibe **un único resultado**.
+- [x] La lógica vive en cada módulo (`scraper`, `enricher`, `translator`, `exporter`); `src/main.py` solo orquesta la entrada/salida.
 - [x] La CLI no falla por codificación en Windows (entrada/salida UTF-8 con reemplazo seguro).
 - [x] Validado con `tests/test_main.py` (sin red ni IA real).
 
@@ -73,7 +71,7 @@
 
 ### Criterios de Aceptación:
 - [x] Cada ejecución escribe en `logs/app.log` (creado automáticamente).
-- [x] Se registra el formulario, la validación, la extracción, el procesamiento y la exportación.
+- [x] Se registran las opciones capturadas, la extracción, el procesamiento y la exportación.
 - [x] Salida simultánea a consola y archivo, con formato `[fecha] [nivel] módulo: mensaje`.
 - [x] Configuración centralizada en `src/logging_config.py`.
 - [x] El archivo de log está excluido del repositorio en `.gitignore`.
@@ -95,23 +93,24 @@
 - [ ] El contenido traducido se muestra en la terminal.
 - [ ] El contenido traducido es el que se exporta al archivo.
 - [x] El contrato está definido en `src/translator.py` (`translate(text, target_language) -> str`).
-- [x] La integración está preparada: basta inyectar `ContentPipeline(translator=DeepTranslateTranslator())`.
-- [x] Mientras no esté disponible, la validación rechaza la opción **antes** de procesar y explica el motivo.
-- [x] Escenario Gherkin documentado: *"Pido traducir con el traductor aún no disponible"* (`@fallido`).
+- [x] La integración está preparada: `src/main.py` invoca `DeepTranslateTranslator().translate(...)`.
+- [x] Mientras no esté disponible, la CLI avisa con el motivo (*"Traducción omitida"*) y continúa con el contenido sin traducir.
+- [x] Validado con `tests/test_main.py::test_flow_reports_unavailable_translation` y `tests/test_translator.py`.
 
 ---
 
 ## Historia de Usuario: Generación de Archivos (⭐)
 
 * **ID:** HU-06
-* **Título:** Exportación exclusiva de la variante solicitada en TXT o PDF.
+* **Título:** Exportación de un único resultado en TXT o PDF.
 * **Prioridad:** Alta
 * **Historia de Usuario:**
-  > Como usuario, quiero que el archivo guardado contenga únicamente lo que he pedido, con un nombre que yo elijo.
+  > Como usuario, quiero que el archivo guardado contenga únicamente lo que he pedido —el resultado final—, con un nombre que yo elijo.
 
 ### Criterios de Aceptación:
-- [x] El usuario elige el formato (`txt` / `pdf`) y el nombre del archivo.
-- [x] El archivo contiene **solo** el título y el cuerpo de la variante elegida: sin texto original adicional ni notas no solicitadas.
+- [x] El usuario confirma si desea guardar, elige el formato (`txt` / `pdf`) y el nombre del archivo; no se le pregunta qué partes incluir.
+- [x] El cuerpo del archivo es **un solo resultado**: la traducción si se pidió; si no, el resumen, el contenido enriquecido o el texto original.
+- [x] El archivo contiene **solo** el título y ese cuerpo: sin texto original adicional ni notas no solicitadas.
 - [x] El TXT se escribe en UTF-8 **con BOM** para que Windows lo reconozca.
 - [x] El PDF registra una fuente Unicode del sistema: los caracteres fuera de Helvetica (`ĭ`, `ē`, `²`, emojis) dejan de salir rotos.
 - [x] El texto se escapa como XML antes de componer el PDF: las secuencias `<...>` del texto de Wikipedia ya no desaparecen.
@@ -132,10 +131,9 @@
 ### Criterios de Aceptación:
 - [x] El sistema enriquece el texto con IA y lo muestra en la terminal.
 - [x] El sistema genera resúmenes del contenido elegido (⭐).
-- [x] Un fallo de la API se propaga como `AiError`: **nunca** se devuelve el original haciéndose pasar por enriquecido.
-- [x] Sin credenciales, la opción "enriquecido" o "resumen" se rechaza en la validación con un mensaje accionable.
-- [x] La clave, la URL base y el modelo (`AI_MODEL`) se configuran por variables de entorno.
-- [x] `scripts/check_models.py` diagnostica la configuración en una ejecución.
+- [x] Un fallo de la API se registra en el log (`IA no disponible`) y no interrumpe el flujo.
+- [x] Sin credenciales, la CLI avisa al arrancar, omite enriquecimiento y resumen y continúa con el texto original.
+- [x] La clave y la URL base se configuran por variables de entorno.
 - [x] Validado con `tests/test_enricher.py` (sin llamadas reales).
 
 ---

@@ -8,41 +8,41 @@ pytestmark = pytest.mark.integration
 # Conectamos este archivo Python con el archivo .feature que creamos antes
 scenarios('features/scraper.feature')
 
-@given(parsers.parse('que configuro el scraper con el tema "{tema}"'), target_fixture="datos_prueba")
-def configurar_scraper(tema):
-    return {"tema": tema, "resultado": None, "error": None}
+@given(parsers.parse('que configuro el scraper con el tema "{topic}"'), target_fixture="test_data")
+def configure_scraper(topic):
+    return {"topic": topic, "result": None, "error": None}
 
-@given(parsers.parse('que configuro el scraper con un tema inexistente "{tema}"'), target_fixture="datos_prueba")
-def configurar_scraper_inexistente(tema):
-    return {"tema": tema, "resultado": None, "error": None}
+@given(parsers.parse('que configuro el scraper con un tema inexistente "{topic}"'), target_fixture="test_data")
+def configure_missing_scraper(topic):
+    return {"topic": topic, "result": None, "error": None}
 
 @when('ejecuto la extracción de contenido')
-def ejecutar_extraccion(datos_prueba):
+def run_extraction(test_data):
     try:
-        scraper = WikipediaScraper(datos_prueba["tema"])
-        datos_prueba["resultado"] = scraper.extraer_contenido()
-    except Exception as e:
-        datos_prueba["error"] = e
+        scraper = WikipediaScraper(test_data["topic"])
+        test_data["result"] = scraper.extract_content()
+    except Exception as error:
+        test_data["error"] = error
 
 @when('intento extraer el contenido')
-def intentar_extraccion(datos_prueba):
+def try_extraction(test_data):
     try:
-        scraper = WikipediaScraper(datos_prueba["tema"])
-        datos_prueba["resultado"] = scraper.extraer_contenido()
-    except Exception as e:
-        datos_prueba["error"] = e
+        scraper = WikipediaScraper(test_data["topic"])
+        test_data["result"] = scraper.extract_content()
+    except Exception as error:
+        test_data["error"] = error
 
 @then('obtengo un diccionario con un título válido')
-def verificar_titulo(datos_prueba):
-    assert datos_prueba["error"] is None
-    assert "titulo" in datos_prueba["resultado"]
-    assert len(datos_prueba["resultado"]["titulo"]) > 0
+def check_title(test_data):
+    assert test_data["error"] is None
+    assert "title" in test_data["result"]
+    assert len(test_data["result"]["title"]) > 0
 
 @then('la lista de párrafos contiene exactamente 5 elementos')
-def verificar_parrafos(datos_prueba):
-    assert "parrafos" in datos_prueba["resultado"]
-    assert len(datos_prueba["resultado"]["parrafos"]) == 5
+def check_paragraphs(test_data):
+    assert "paragraphs" in test_data["result"]
+    assert len(test_data["result"]["paragraphs"]) == 5
 
 @then('el sistema lanza un error indicando que el artículo no existe')
-def verificar_error(datos_prueba):
-    assert datos_prueba["error"] is not None
+def check_error(test_data):
+    assert test_data["error"] is not None

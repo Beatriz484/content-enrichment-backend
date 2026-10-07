@@ -1,9 +1,9 @@
 """Errores controlados del dominio Content Enricher.
 
-Toda la capa de presentación (``src/main.py``) captura únicamente
-``ContentEnricherError`` y los errores de red/artículo heredados del scraper
-(``ConnectionError`` y ``ValueError``). Así un fallo nunca se oculta en
-silencio y siempre llega al usuario con un mensaje accionable.
+``src/main.py`` captura estos errores y los traduce a un mensaje accionable en
+la terminal. Los errores de red o de artículo heredados del scraper
+(``ConnectionError`` y ``ValueError``) se tratan igual en esa capa de
+presentación, de modo que un fallo nunca se oculta en silencio.
 """
 
 
@@ -11,13 +11,10 @@ class ContentEnricherError(Exception):
     """Base de todos los errores controlados del sistema."""
 
 
-class ServicioNoDisponibleError(ContentEnricherError):
+class ServiceUnavailableError(ContentEnricherError):
     """Falta una dependencia: la IA o el traductor no están inyectados."""
 
 
-class AiError(ContentEnricherError):
-    """La llamada a la API de inteligencia artificial falló."""
-
-
-class TranslationError(ContentEnricherError):
-    """La llamada a la API de traducción falló."""
+# ``src/translator.py`` (módulo entregado por el equipo y no modificado) sigue
+# importando este error por su nombre en español: se mantiene como alias.
+ServicioNoDisponibleError = ServiceUnavailableError
