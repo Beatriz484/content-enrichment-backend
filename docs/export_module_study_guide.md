@@ -4,7 +4,7 @@
 > **Módulo:** `src/exporter/`
 > **Tests:** `tests/test_exporter/`
 > **Stack:** Python · `reportlab` (PDF) · escritura nativa UTF-8 con BOM (TXT) · `pytest`
-> **Última actualización:** 2026-10-06
+> **Última actualización:** 2026-10-07
 
 > ### ⚠️ Estado actual tras la iteración de la matriz de control
 >
@@ -14,6 +14,7 @@
 > | Antes | Ahora |
 > |---|---|
 > | Se exportaban siempre las secciones 1-4 | El archivo contiene **solo** `{"topic", "body"}` |
+> | Selección de secciones en la CLI (`ask_sections`, `compose_body`) | **Eliminado**: solo se guarda el **único resultado** final (traducción → resumen → enriquecido → original) |
 > | `titles.py` con rótulos por estado de la IA | **Eliminado** (`src/exporter/titles.py`) |
 > | `examples/demo_exporter.py` | **Eliminado** (duplicaba la CLI) |
 > | TXT en UTF-8 sin BOM | UTF-8 **con BOM** (`utf-8-sig`) para que Windows lo reconozca |
@@ -99,7 +100,7 @@ Las cuatro primeras claves son **obligatorias**: forman el conjunto `REQUIRED_KE
 | Hay texto traducido | `3. CONTENIDO TRADUCIDO` |
 | Traductor pendiente | `3. CONTENIDO TRADUCIDO (PENDIENTE)` + nota explicativa |
 
-El diccionario lo construye `src/main.py` (`compose_body()` y `export_report()`), que es quien alimenta al exportador en el flujo real de la CLI.
+El diccionario lo construye `src/main.py` (`export_report()`), que es quien decide el cuerpo —el único resultado de la cadena— y alimenta al exportador en el flujo real de la CLI.
 
 ---
 

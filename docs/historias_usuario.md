@@ -19,20 +19,21 @@
 
 ---
 
-## Historia de Usuario: Interacción inicial y selección de secciones de exportación
+## Historia de Usuario: Interacción por etapas y resultado único de exportación
 
 * **ID:** HU-02
-* **Título:** Elegir exactamente qué salida se quiere recibir.
+* **Título:** Cada decisión en su momento, un solo resultado al final.
 * **Prioridad:** Alta
 * **Estado:** Entregada
 * **Historia de Usuario:**
-  > Como usuario del sistema, quiero indicar el tema, el idioma de traducción y si deseo resumen, y al final elegir qué partes guardar (texto original, enriquecido, resumen o traducción), para recibir exactamente la salida que pedí y nada más.
+  > Como usuario del sistema, quiero indicar primero el tema y que cada decisión (resumen e idioma) se me pregunte en el momento en que le toca, para recibir un único resultado final con lo último que he pedido y nada más.
 
 ### Criterios de Aceptación:
-- [x] La CLI solicita tema e idioma antes de empezar y pregunta por el resumen (⭐); el diálogo vive en `src/main.py`.
+- [x] La CLI pide **solo el tema** al arrancar; el resumen se pregunta tras ver el contenido enriquecido y el idioma justo antes de traducir (la **última petición**). El diálogo vive en `src/main.py`.
+- [x] La extracción de Wikipedia se muestra en terminal **antes** de solicitar cualquier acción adicional.
 - [x] Cada pregunta repite la entrada hasta recibir un valor válido (texto no vacío, sí/no, formato `txt`/`pdf`).
 - [x] El orden del procesamiento es fijo: `base → resumen → traducción`, y la traducción se aplica **siempre al final**.
-- [x] El archivo exportado contiene **exclusivamente** el título y las secciones pedidas.
+- [x] El archivo exportado contiene **exclusivamente** el título y el resultado final (traducción, resumen, contenido enriquecido o texto original): no se eligen secciones.
 - [x] Sin credenciales de IA la CLI avisa y continúa con el texto original; sin traductor entregado avisa y omite la traducción: nunca una degradación silenciosa.
 - [x] Validado con `tests/test_main.py` (sin red ni IA real).
 
@@ -44,13 +45,13 @@
 * **Título:** Investigar, procesar y exportar en un solo flujo.
 * **Prioridad:** Alta
 * **Historia de Usuario:**
-  > Como usuario del sistema, quiero introducir un tema en la terminal para obtener un informe final en `.txt` o `.pdf` con exactamente la variante que he elegido, sin salir de la aplicación.
+  > Como usuario del sistema, quiero introducir un tema en la terminal para obtener un informe final en `.txt` o `.pdf` con el resultado de lo que he pedido, sin salir de la aplicación.
 
 ### Criterios de Aceptación:
-- [x] La CLI solicita tema, idioma y resumen antes de empezar.
+- [x] La CLI solicita solo el tema al empezar; resumen e idioma se preguntan en su momento, tras mostrar la búsqueda.
 - [x] Muestra los resultados de Wikipedia en la terminal antes de pedir acciones adicionales.
 - [x] Muestra cada paso realmente ejecutado (enriquecido, resumen, traducido) e indica los pasos omitidos.
-- [x] Pregunta qué partes guardar (varias opcionales), si desea formato `txt`/`pdf` y el nombre del archivo (⭐).
+- [x] Pregunta si desea guardar, el formato `txt`/`pdf` y el nombre del archivo (⭐); el archivo recibe **un único resultado**.
 - [x] La lógica vive en cada módulo (`scraper`, `enricher`, `translator`, `exporter`); `src/main.py` solo orquesta la entrada/salida.
 - [x] La CLI no falla por codificación en Windows (entrada/salida UTF-8 con reemplazo seguro).
 - [x] Validado con `tests/test_main.py` (sin red ni IA real).
@@ -101,14 +102,15 @@
 ## Historia de Usuario: Generación de Archivos (⭐)
 
 * **ID:** HU-06
-* **Título:** Exportación exclusiva de la variante solicitada en TXT o PDF.
+* **Título:** Exportación de un único resultado en TXT o PDF.
 * **Prioridad:** Alta
 * **Historia de Usuario:**
-  > Como usuario, quiero que el archivo guardado contenga únicamente lo que he pedido, con un nombre que yo elijo.
+  > Como usuario, quiero que el archivo guardado contenga únicamente lo que he pedido —el resultado final—, con un nombre que yo elijo.
 
 ### Criterios de Aceptación:
-- [x] El usuario elige qué partes guardar (solo se ofrecen las realmente generadas), el formato (`txt` / `pdf`) y el nombre del archivo.
-- [x] El archivo contiene **solo** el título y el cuerpo de la variante elegida: sin texto original adicional ni notas no solicitadas.
+- [x] El usuario confirma si desea guardar, elige el formato (`txt` / `pdf`) y el nombre del archivo; no se le pregunta qué partes incluir.
+- [x] El cuerpo del archivo es **un solo resultado**: la traducción si se pidió; si no, el resumen, el contenido enriquecido o el texto original.
+- [x] El archivo contiene **solo** el título y ese cuerpo: sin texto original adicional ni notas no solicitadas.
 - [x] El TXT se escribe en UTF-8 **con BOM** para que Windows lo reconozca.
 - [x] El PDF registra una fuente Unicode del sistema: los caracteres fuera de Helvetica (`ĭ`, `ē`, `²`, emojis) dejan de salir rotos.
 - [x] El texto se escapa como XML antes de componer el PDF: las secuencias `<...>` del texto de Wikipedia ya no desaparecen.

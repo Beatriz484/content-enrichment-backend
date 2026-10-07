@@ -1,6 +1,6 @@
 # Content Enricher - Backend 🚀
 
-**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema permite buscar un tema en Wikipedia, extraer su contenido clave, enriquecerlo y resumirlo mediante Inteligencia Artificial, traducirlo a diferentes idiomas y exportar **únicamente la variante solicitada** en formato `.txt` o `.pdf`.
+**Content Enricher** es una herramienta desarrollada en Python diseñada para transformar información bruta en documentos de estudio claros, estructurados y enriquecidos. El sistema busca un tema en Wikipedia, extrae su contenido clave, lo enriquece y lo resume mediante Inteligencia Artificial, lo traduce a diferentes idiomas —siempre en ese orden y **la traducción como última petición**— y exporta **un único resultado**, el de la última etapa ejecutada, en formato `.txt` o `.pdf`.
 
 ---
 
@@ -111,22 +111,19 @@ AI_MODEL=qwen/qwen3.8-27b
 
 ## 🎛️ Flujo de la aplicación
 
-Al arrancar (`python -m src.main`) la CLI solicita primero los datos de interacción:
+Al arrancar (`python -m src.main`) la CLI pide **solo el tema** y arranca el
+proceso. Las decisiones restantes se preguntan **en el momento en que les toca**,
+siempre después de mostrar los resultados de la búsqueda:
 
 ```text
-➤ Tema a investigar en Wikipedia
-➤ Idioma de traducción (ej. en, fr — Enter = original)
-➤ ¿Generar un resumen del contenido con IA? (sí/no)
-```
-
-Y a continuación ejecuta el flujo, mostrando cada paso en terminal:
-
-```text
+➤ Tema a investigar en Wikipedia      (única pregunta inicial)
 [1/5] Buscando en Wikipedia      → título + 5 párrafos en pantalla
 [2/5] Enriquecimiento con IA     → contenido enriquecido en pantalla
+➤ ¿Generar un resumen del contenido con IA? (sí/no)
 [3/5] Resumen (extra)            → resumen con ChatGPT en pantalla
+➤ Idioma de traducción (ej. en, fr — Enter = original)   ← última petición
 [4/5] Traducción                 → contenido traducido en pantalla
-[5/5] Exportación                → ¿Guardar? ➤ qué partes ➤ formato (txt/pdf) ➤ nombre
+[5/5] Exportación                → ¿Guardar? ➤ formato (txt/pdf) ➤ nombre
 ```
 
 Cada paso que no se ejecuta se indica explícitamente (sin IA, sin resumen
@@ -136,31 +133,28 @@ solicitado o con el idioma original).
 
 ## 📦 Qué se exporta
 
-Al final del flujo la CLI pregunta **qué partes del informe guardar** y solo
-ofrece las que se generaron realmente:
-
-| Sección | Disponible cuando |
-|---|---|
-| Texto original | Siempre |
-| Contenido enriquecido (IA) | Si hay credenciales de IA |
-| Resumen (IA) | Si se pidió generar el resumen |
-| Traducción | Si se pidió idioma y el traductor está entregado |
-
-Se pueden elegir varias a la vez (separadas por comas) y después el formato
-(`txt` / `pdf`) y el nombre del archivo. El orden de procesamiento es fijo:
+El informe contiene **un único resultado**: el último eslabón realmente
+generado de la cadena. No se pregunta qué partes guardar porque solo hay una
+respuesta posible:
 
 ```python
-base     = enriquecer(texto)          # si hay IA
-resumen  = resumir(base)              # solo si se pidió
-cuerpo   = resumen or base
-traducido = traducir(cuerpo, idioma)  # si se pidió idioma: siempre al final
+base      = enriquecer(texto)               # si hay credenciales de IA
+resumen   = resumir(base)                   # solo si se pidió
+traducido = traducir(resumen or base)       # solo si se pidió idioma
+final     = traducido or resumen or base or texto   # ← lo que se guarda
 ```
 
-Las secciones elegidas se componen en el cuerpo del archivo (con su rótulo
-cuando hay más de una) y se entregan al exportador como `{"topic", "body"}`:
+| Parte del archivo | Contenido |
+|---|---|
+| `TÍTULO` | Título del artículo de Wikipedia |
+| Cuerpo | `final`: la traducción si existe; si no, el resumen, el contenido enriquecido o el texto original |
 
-> **Regla de exportación:** el archivo recibe **solo** lo que el usuario pidió.
-> El paquete `src/exporter/` no tiene acceso a nada más.
+El diálogo de exportación se reduce a tres decisiones: **¿Guardar?**, **formato**
+(`txt` / `pdf`) y **nombre** del archivo. El paquete `src/exporter/` recibe
+`{"topic", "body"}` y no tiene acceso a nada más.
+
+> **Regla de exportación:** el archivo recibe **solo** lo que el usuario pidió,
+> sin secciones adicionales ni notas no solicitadas.
 
 ---
 
@@ -218,13 +212,13 @@ python -m src.main
 
 ```text
 ➤ Tema a investigar en Wikipedia      (requerido)
-➤ Idioma de traducción               (Enter = mantener idioma original)
-➤ ¿Generar un resumen?               (sí / no)
 [1/5] Wikipedia → título + 5 párrafos en pantalla
 [2/5] Enriquecimiento con IA → contenido enriquecido en pantalla
+➤ ¿Generar un resumen?               (sí / no)
 [3/5] Resumen (extra) → resumen en pantalla
+➤ Idioma de traducción                (Enter = mantener idioma original)
 [4/5] Traducción → contenido traducido en pantalla
-[5/5] Exportación → ¿Guardar? ➤ qué partes ➤ formato (txt / pdf) ➤ nombre
+[5/5] Exportación → ¿Guardar? ➤ formato (txt / pdf) ➤ nombre
 🟢 ESTADO: ÉXITO → output/<nombre>.<ext>
 ```
 
@@ -235,9 +229,11 @@ python -m src.main
 Cada ejecución registra el proceso completo en `logs/app.log`:
 
 ```text
-[2026-10-06 13:09:48] [INFO] src.main: Opciones capturadas: tema='camas', idioma=original, resumen=False.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: tema='camas'.
 [2026-10-06 13:09:48] [INFO] src.main: Wikipedia: extraídos 5 párrafos de 'Camas'.
 [2026-10-06 13:09:48] [INFO] src.main: IA: contenido enriquecido generado.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: resumen=False.
+[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: idioma=original.
 [2026-10-06 13:09:48] [INFO] src.main: Informe exportado a 'output\informe.txt'.
 ```
 
