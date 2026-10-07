@@ -1,4 +1,13 @@
-pre-commit
+# Runtime
+beautifulsoup4==4.14.3
 deep-translator==1.11.4
+openai==3.24.0
 python-dotenv==1.2.3
+reportlab==5.0.1
 requests==2.32.5
+
+# Development (tests, coverage and git hooks)
+pre-commit==4.6.2
+pytest==9.0.2
+pytest-bdd==9.0.0
+pytest-cov==7.0.0
