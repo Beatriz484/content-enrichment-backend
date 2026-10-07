@@ -8,9 +8,7 @@ from src.main import (
     _create_enricher,
     _setup_console,
     ask_format,
-    ask_sections,
     ask_text,
-    compose_body,
     confirm,
     main,
     research_topic,
@@ -21,29 +19,31 @@ RESEARCH_RESULT = {
     "paragraphs": ["Párrafo uno.", "Párrafo dos."],
 }
 FULL_TEXT = "Párrafo uno.\n\nPárrafo dos."
-
-SECTIONS = [
-    ("1", "Texto original", "original"),
-    ("2", "Contenido enriquecido (IA)", "enriquecido"),
-    ("3", "Resumen (IA)", "resumen"),
-]
+ENRICHED_TEXT = "Contenido enriquecido por IA"
 
 
 def _enricher_mock():
     enricher = MagicMock()
-    enricher.enrich_content.return_value = "Contenido enriquecido por IA"
+    enricher.enrich_content.return_value = ENRICHED_TEXT
     enricher.summarize_content.return_value = "Resumen ejecutivo"
     return enricher
 
 
 def run_cli(
     inputs,
+    prompts=None,
     with_ai=True,
     export_result=(True, "output/informe_test.txt"),
     scraper_error=None,
     translation_error=False,
 ):
-    """Lanza la CLI con dependencias simuladas y devuelve los mocks."""
+    """Lanza la CLI con dependencias simuladas y devuelve los mocks.
+
+    El orden esperado de ``inputs`` es el del circuito: tema, resumen, idioma,
+    guardar, formato y nombre (sin IA se omite la pregunta del resumen). Si se
+    pasa ``prompts``, se rellena con las preguntas en el orden en que la CLI las
+    hace, para poder verificar ese circuito.
+    """
     enricher_factory = (
         MagicMock(return_value=_enricher_mock())
         if with_ai
@@ -57,12 +57,22 @@ def run_cli(
     else:
         translator.translate.return_value = "Texto traducido"
 
+    answers = iter(inputs)
+    prompt_log = prompts if prompts is not None else []
+
+    def fake_input(prompt=""):
+        prompt_log.append(prompt)
+        try:
+            return next(answers)
+        except StopIteration:
+            raise EOFError
+
     with patch("src.main.setup_logging"), \
             patch("src.main.AiContentEnricher", enricher_factory), \
             patch("src.main.WikipediaScraper") as scraper_cls, \
             patch("src.main.DeepTranslateTranslator", return_value=translator), \
             patch("src.main.DocumentExporter") as exporter_cls, \
-            patch("builtins.input", side_effect=inputs):
+            patch("builtins.input", side_effect=fake_input):
         scraper_cls.return_value.extract_content.return_value = dict(RESEARCH_RESULT)
         if scraper_error:
             scraper_cls.side_effect = scraper_error
@@ -157,38 +167,30 @@ def test_ask_format_retries_until_valid(capsys):
     assert "Formato no válido" in capsys.readouterr().out
 
 
-def test_ask_sections_accepts_multiple_values():
-    """La multi-selección admite varias claves separadas por comas, sin repetir."""
-    with patch("builtins.input", side_effect=["3,1,3"]):
-        selected = ask_sections(SECTIONS)
+# --- Resultado único del informe -----------------------------------------------
 
-    assert selected == [SECTIONS[0], SECTIONS[2]]
+def test_export_saves_one_result_and_never_asks_for_parts(capsys):
+    """Requisito: un solo resultado en el archivo y ninguna pregunta de secciones."""
+    inputs = ["python", "n", "", "s", "txt", "informe_test"]
+    code, exporter_cls, _, _ = run_cli(inputs)
+    output = capsys.readouterr().out
 
-
-def test_ask_sections_rejects_unknown_keys(capsys):
-    """Una clave inexistente repite la pregunta hasta recibir una válida."""
-    with patch("builtins.input", side_effect=["9", "2"]):
-        selected = ask_sections(SECTIONS)
-
-    assert selected == [SECTIONS[1]]
-    assert "Respuesta no válida" in capsys.readouterr().out
+    assert code == 0
+    assert "Qué partes deseas guardar" not in output
+    call = exporter_cls.return_value.export_content.call_args.kwargs
+    assert call["content_data"]["body"] == ENRICHED_TEXT
 
 
-# --- Composición del informe ---------------------------------------------------
+def test_export_result_is_the_last_stage_of_the_chain():
+    """La traducción es la última etapa: manda sobre resumen y enriquecido."""
+    inputs = ["python", "s", "fr", "s", "pdf", "informe"]
+    code, exporter_cls, _, translator = run_cli(inputs)
 
-def test_compose_body_single_section_returns_exact_text():
-    """Con una sola sección el archivo contiene exactamente ese contenido."""
-    assert compose_body([SECTIONS[0]]) == "original"
-
-
-def test_compose_body_multiple_sections_adds_labels():
-    """Con varias secciones cada una se identifica con su rótulo."""
-    body = compose_body([SECTIONS[0], SECTIONS[1]])
-
-    assert "Texto original" in body
-    assert "original" in body
-    assert "Contenido enriquecido (IA)" in body
-    assert "enriquecido" in body
+    assert code == 0
+    # La traducción recibe el resumen, que a su vez parte del enriquecido.
+    translator.translate.assert_called_once_with("Resumen ejecutivo", "fr")
+    call = exporter_cls.return_value.export_content.call_args.kwargs
+    assert call["content_data"]["body"] == "Texto traducido"
 
 
 # --- Investigación -------------------------------------------------------------
@@ -215,9 +217,9 @@ def test_research_topic_propagates_scraper_errors():
 
 # --- Flujo completo -------------------------------------------------------------
 
-def test_full_flow_exports_only_the_selected_sections():
-    """Requisito: el archivo recibe únicamente las partes pedidas por el usuario."""
-    inputs = ["python", "fr", "s", "s", "1,3", "txt", "informe_test"]
+def test_full_flow_exports_the_single_final_result():
+    """Requisito: el archivo recibe un único resultado, el de la última etapa."""
+    inputs = ["python", "s", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, scraper_cls, _ = run_cli(inputs)
 
     assert code == 0
@@ -226,15 +228,50 @@ def test_full_flow_exports_only_the_selected_sections():
     assert call["file_name"] == "informe_test"
     assert call["output_format"] == "txt"
     assert call["content_data"]["topic"] == "Python"
-    body = call["content_data"]["body"]
-    assert "Párrafo uno." in body
-    assert "Resumen ejecutivo" in body
-    assert "Contenido enriquecido por IA" not in body
+    assert call["content_data"]["body"] == "Texto traducido"
+
+
+def test_flow_asks_actions_after_showing_the_search_results(capsys):
+    """Requisito: la búsqueda se muestra antes de pedir resumen e idioma."""
+    events = []
+    answers = iter(["python", "s", "fr", "s", "txt", "informe_test"])
+
+    def record_input(prompt=""):
+        events.append(prompt)
+        return next(answers)
+
+    translator = MagicMock()
+    translator.translate.return_value = "Texto traducido"
+
+    with patch("src.main.setup_logging"), \
+            patch("src.main.AiContentEnricher", return_value=_enricher_mock()), \
+            patch("src.main.WikipediaScraper") as scraper_cls, \
+            patch("src.main.DeepTranslateTranslator", return_value=translator), \
+            patch("src.main.DocumentExporter") as exporter_cls, \
+            patch("builtins.input", side_effect=record_input):
+
+        def record_wikipedia():
+            events.append("wikipedia")
+            return dict(RESEARCH_RESULT)
+
+        scraper_cls.return_value.extract_content.side_effect = record_wikipedia
+        exporter_cls.return_value.export_content.return_value = (
+            True,
+            "output/informe_test.txt",
+        )
+        assert main() == 0
+
+    # El circuito es: tema → Wikipedia → resumen → idioma (la última petición).
+    wikipedia_at = events.index("wikipedia")
+    summary_at = next(i for i, event in enumerate(events) if "resumen" in event)
+    language_at = next(i for i, event in enumerate(events) if "Idioma" in event)
+    assert wikipedia_at < summary_at < language_at
+    assert "TÍTULO: Python" in capsys.readouterr().out
 
 
 def test_flow_shows_wikipedia_content_before_export(capsys):
     """Requisito: la extracción se muestra en terminal durante el flujo."""
-    inputs = ["python", "", "n", "s", "1", "txt", "informe_test"]
+    inputs = ["python", "n", "", "s", "txt", "informe_test"]
     code, _, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
 
@@ -245,7 +282,7 @@ def test_flow_shows_wikipedia_content_before_export(capsys):
 
 def test_flow_without_ai_credentials_continues_with_original(capsys):
     """Sin IA el flujo no se interrumpe: se avisa y solo existe el texto original."""
-    inputs = ["python", "", "s", "1", "txt", "informe_test"]
+    inputs = ["python", "", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs, with_ai=False)
     output = capsys.readouterr().out
 
@@ -260,7 +297,7 @@ def test_flow_without_ai_credentials_continues_with_original(capsys):
 def test_flow_stops_when_wikipedia_falls():
     """Failed: un artículo inexistente informa del motivo y no se exporta nada."""
     code, exporter_cls, _, _ = run_cli(
-        ["python", "", "s"],
+        ["python"],
         scraper_error=ValueError("no existe"),
     )
 
@@ -270,25 +307,26 @@ def test_flow_stops_when_wikipedia_falls():
 
 def test_flow_reports_unavailable_translation(capsys):
     """Mientras el módulo no esté entregado se avisa y la traducción se omite."""
-    inputs = ["python", "fr", "n", "s", "1,2", "txt", "informe_test"]
+    inputs = ["python", "n", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs, translation_error=True)
     output = capsys.readouterr().out
 
     assert code == 0
     assert "Traducción omitida" in output
-    assert "[4] Traducción" not in output
+    assert "CONTENIDO TRADUCIDO" not in output
+    # Sin traducción manda el último eslabón disponible: el enriquecido.
     call = exporter_cls.return_value.export_content.call_args.kwargs
-    assert "Traducción" not in call["content_data"]["body"]
+    assert call["content_data"]["body"] == ENRICHED_TEXT
 
 
 def test_flow_translates_the_final_content():
     """Si el traductor está disponible, la traducción se muestra y se puede guardar."""
-    inputs = ["python", "fr", "n", "s", "4", "pdf", "informe"]
+    inputs = ["python", "n", "fr", "s", "pdf", "informe"]
     code, exporter_cls, _, translator = run_cli(inputs)
 
     assert code == 0
     # La traducción se aplica al final, sobre el contenido resultante.
-    translator.translate.assert_called_once_with("Contenido enriquecido por IA", "fr")
+    translator.translate.assert_called_once_with(ENRICHED_TEXT, "fr")
     call = exporter_cls.return_value.export_content.call_args.kwargs
     assert call["output_format"] == "pdf"
     assert call["content_data"]["body"] == "Texto traducido"
@@ -296,7 +334,7 @@ def test_flow_translates_the_final_content():
 
 def test_discarding_the_report_skips_export():
     """El usuario puede abandonar sin escribir nada en disco."""
-    code, exporter_cls, _, _ = run_cli(["python", "", "s", "no"])
+    code, exporter_cls, _, _ = run_cli(["python", "n", "", "no"])
 
     assert code == 0
     exporter_cls.return_value.export_content.assert_not_called()
@@ -305,7 +343,7 @@ def test_discarding_the_report_skips_export():
 def test_export_failure_returns_error_code():
     """Un fallo del exportador se devuelve como código de salida distinto de cero."""
     code, _, _, _ = run_cli(
-        ["python", "", "s", "s", "1", "txt", "informe_test"],
+        ["python", "n", "", "s", "txt", "informe_test"],
         export_result=(False, "Error de Validación: formato"),
     )
 

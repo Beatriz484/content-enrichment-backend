@@ -1,7 +1,12 @@
 """Interfaz de línea de comandos del Content Enricher.
 
-Flujo: interacción → Wikipedia → enriquecimiento IA → resumen → traducción →
-exportación.
+Flujo: tema → Wikipedia → enriquecimiento IA → resumen (si se pide) →
+traducción (siempre la última petición) → exportación de **un único resultado**.
+
+Cada decisión del usuario se pregunta en el momento en el que le toca: el tema
+abre el proceso, el resumen se ofrece tras ver el contenido enriquecido y el
+idioma se pide justo antes de traducir. El archivo final recibe el último
+eslabón de la cadena realmente generado, sin preguntar qué partes guardar.
 
 Esta capa **solo** muestra resultados y pide decisiones al usuario. La lógica de
 cada servicio vive en su módulo: ``src/scraper.py`` (extracción),
@@ -11,7 +16,7 @@ forma simplificada, para no dispersar la CLI en varios ficheros.
 """
 import logging
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .enricher import AiContentEnricher
 from .errors import ServiceUnavailableError
@@ -21,9 +26,6 @@ from .scraper import WikipediaScraper
 from .translator import DeepTranslateTranslator
 
 logger = logging.getLogger(__name__)
-
-# Sección de contenido disponible para la exportación: (clave, rótulo, texto).
-Section = Tuple[str, str, str]
 
 VALID_FORMATS: Tuple[str, ...] = ("txt", "pdf")
 AFFIRMATIVE_ANSWERS: Tuple[str, ...] = ("s", "si", "sí", "y", "yes")
@@ -72,26 +74,6 @@ def ask_format() -> str:
         if output_format in VALID_FORMATS:
             return output_format
         print(f"⚠️  Formato no válido. Usa uno de: {', '.join(VALID_FORMATS)}.")
-
-
-def ask_sections(sections: List[Section]) -> List[Section]:
-    """Pide qué partes del informe guardar, aceptando varias separadas por comas.
-
-    Solo se ofrecen las secciones realmente generadas en la ejecución y se
-    descartan las respuestas que no correspondan a ninguna de ellas.
-    """
-    print("\n➤ ¿Qué partes deseas guardar en el archivo?")
-    for key, label, _ in sections:
-        print(f"   [{key}] {label}")
-
-    valid_keys = [key for key, _, _ in sections]
-    while True:
-        raw_answer = input("   Elige (separa con comas): ").strip().lower()
-        chosen_keys = [part.strip() for part in raw_answer.split(",") if part.strip()]
-        if chosen_keys and all(key in valid_keys for key in chosen_keys):
-            # Se guardan en el mismo orden en el que se ofrecen y sin repetir.
-            return [section for section in sections if section[0] in chosen_keys]
-        print(f"⚠️  Respuesta no válida. Usa una o varias de: {', '.join(valid_keys)}.")
 
 
 # --- Pasos del flujo --------------------------------------------------------
@@ -170,30 +152,24 @@ def translate_content(
 
 # --- Exportación ------------------------------------------------------------
 
-def compose_body(sections: List[Section]) -> str:
-    """Compone el cuerpo del archivo a partir de las secciones elegidas."""
-    labeled = [(label, content.strip()) for _, label, content in sections]
-    if len(labeled) == 1:
-        # Con una sola sección no hace falta rótulo: el archivo queda exacto.
-        return labeled[0][1]
-    return "\n\n".join(f"{label}\n{RULE}\n{content}" for label, content in labeled)
+def export_report(title: str, content: str) -> int:
+    """Pide si guardar, en qué formato y con qué nombre, y escribe el archivo.
 
-
-def export_report(title: str, sections: List[Section]) -> int:
-    """Pide qué guardar, en qué formato y con qué nombre, y escribe el archivo."""
+    El informe es **unicamente** el resultado final de la cadena de procesado:
+    no se pregunta qué partes incluir porque solo hay una respuesta posible.
+    """
     if not confirm("¿Guardar el informe en disco?", True):
         print("Informe descartado.")
         logger.info("Informe descartado por el usuario.")
         return 0
 
-    selected = ask_sections(sections)
     output_format = ask_format()
     file_name = ask_text("➤ Nombre del archivo (sin extensión): ")
 
     success, detail = DocumentExporter(output_dir="output").export_content(
         file_name=file_name,
         output_format=output_format,
-        content_data={"topic": title, "body": compose_body(selected)},
+        content_data={"topic": title, "body": content.strip()},
     )
 
     print(RULE)
@@ -231,20 +207,8 @@ def _run() -> int:
     print("     CONTENT ENRICHER · INVESTIGACIÓN ASISTIDA")
     print("=" * 56)
 
-    # 1. Interacción ---------------------------------------------------------
+    # 1. Interacción: solo el tema abre el proceso ---------------------------
     topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
-    language = ask_language()
-
-    enricher = _create_enricher()
-    want_summary = False
-    if enricher:
-        want_summary = confirm("➤ ¿Generar un resumen del contenido con IA?", False)
-    logger.info(
-        "Opciones capturadas: tema='%s', idioma=%s, resumen=%s.",
-        topic,
-        language or "original",
-        want_summary,
-    )
 
     # 2. Scraping ------------------------------------------------------------
     print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
@@ -254,8 +218,12 @@ def _run() -> int:
         print(f"🔴 No se pudo investigar el tema: {error}")
         return 1
     show_investigation(research)
+    logger.info("Opción capturada: tema='%s'.", topic)
 
     # 3. Enriquecimiento IA --------------------------------------------------
+    # Los resultados de Wikipedia ya están en pantalla: ahora sí se piden
+    # las acciones adicionales (primero el resumen, luego el idioma).
+    enricher = _create_enricher()
     if enricher:
         print("[2/5] Enriqueciendo el contenido con IA...")
         enriched = enrich_content(enricher, research["text"])
@@ -265,6 +233,11 @@ def _run() -> int:
         print("[2/5] Enriquecimiento omitido: no hay credenciales de IA.")
 
     # 4. Resumen (extra) -----------------------------------------------------
+    want_summary = False
+    if enricher:
+        want_summary = confirm("➤ ¿Generar un resumen del contenido con IA?", False)
+        logger.info("Opción capturada: resumen=%s.", want_summary)
+
     summary = ""
     if want_summary:
         print("[3/5] Generando el resumen con IA...")
@@ -274,7 +247,10 @@ def _run() -> int:
     else:
         print("[3/5] Resumen omitido (no se solicitó).")
 
-    # 5. Traducción ----------------------------------------------------------
+    # 5. Traducción: la última petición del usuario y el último proceso ------
+    language = ask_language()
+    logger.info("Opción capturada: idioma=%s.", language or "original")
+
     translated = ""
     if language:
         print(f"[4/5] Traduciendo el contenido al idioma '{language}'...")
@@ -289,17 +265,12 @@ def _run() -> int:
     else:
         print("[4/5] Traducción omitida (idioma original).")
 
-    # 6. Exportación ---------------------------------------------------------
+    # 6. Exportación: un único resultado ------------------------------------
     print("[5/5] Exportación del informe.")
-    sections: List[Section] = [("1", "Texto original", research["text"])]
-    if enriched:
-        sections.append(("2", "Contenido enriquecido (IA)", enriched))
-    if summary:
-        sections.append(("3", "Resumen (IA)", summary))
-    if translated:
-        sections.append(("4", f"Traducción ({language})", translated))
-
-    return export_report(research["title"], sections)
+    # El archivo recibe el último eslabón realmente generado de la cadena
+    # traducción → resumen → enriquecido → texto original.
+    final_content = translated or summary or enriched or research["text"]
+    return export_report(research["title"], final_content)
 
 
 def _setup_console() -> None:
