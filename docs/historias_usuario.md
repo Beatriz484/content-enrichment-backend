@@ -57,7 +57,7 @@
 - [x] Validado con `tests/test_main.py` (sin red ni IA real).
 
 ### Criterios pendientes:
-- [ ] Traducción al idioma elegido (ver HU-05).
+- [x] Traducción al idioma elegido (ver HU-05).
 
 ---
 
@@ -84,14 +84,14 @@
 * **ID:** HU-05
 * **Título:** Traducción de la variante elegida al idioma seleccionado.
 * **Prioridad:** Alta
-* **Estado:** Contrato entregado · implementación pendiente (asignada al equipo)
+* **Estado:** Implementado · entregado con `deep_translator` (MyMemory) y validado con `tests/test_deep_translate_service.py`
 * **Historia de Usuario:**
   > Como usuario del sistema, quiero traducir la salida que he elegido al idioma que he seleccionado para poder consultarlo en otro idioma.
 
 ### Criterios de Aceptación:
-- [ ] El sistema traduce el contenido usando la API de DeepTranslate.
-- [ ] El contenido traducido se muestra en la terminal.
-- [ ] El contenido traducido es el que se exporta al archivo.
+- [x] El sistema traduce el contenido usando la API de DeepTranslate.
+- [x] El contenido traducido se muestra en la terminal.
+- [x] El contenido traducido es el que se exporta al archivo.
 - [x] El contrato está definido en `src/translator.py` (`translate(text, target_language) -> str`).
 - [x] La integración está preparada: `src/main.py` invoca `DeepTranslateTranslator().translate(...)`.
 - [x] Mientras no esté disponible, la CLI avisa con el motivo (*"Traducción omitida"*) y continúa con el contenido sin traducir.
