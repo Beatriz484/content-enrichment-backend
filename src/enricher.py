@@ -1,11 +1,11 @@
 import logging
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
+from openAI import OpenAI
 
 load_dotenv()
 
-# Logger setup matching system flow specifications
+# Logger setup matching system flow specificationsgit add .
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
@@ -13,6 +13,7 @@ if not logger.handlers:
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+
 
 
 class AiContentEnricher:
