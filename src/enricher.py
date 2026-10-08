@@ -1,11 +1,11 @@
 import logging
 import os
 from dotenv import load_dotenv
-from openAI import OpenAI
+from openai import OpenAI
 
 load_dotenv()
 
-# Logger setup matching system flow specificationsgit add .
+# Logger setup matching system flow specifications
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
