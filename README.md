@@ -9,6 +9,7 @@
 - **Lenguaje:** Python 3.10+
 - **Scraping:** `beautifulsoup4`, `requests`
 - **IA:** `openai` (API compatible con OpenAI)
+- **Traducción:** `deep-translator` (servicio MyMemory, sin clave de API)
 - **Generación de PDF:** `reportlab`
 - **Testing & Cobertura:** `pytest`, `pytest-cov`, `pytest-bdd`
 - **Validaciones & Git Hooks:** `pre-commit` (Conventional Commits)
@@ -33,7 +34,10 @@ content-enrichment-backend/
 │   ├── logging_config.py         # Logging a consola y a logs/app.log
 │   ├── scraper.py                # Extracción desde Wikipedia (con búsqueda de respaldo)
 │   ├── enricher.py               # Enriquecimiento y resúmenes con IA
-│   ├── translator.py             # Contrato de traducción (HU-04, pendiente de entrega)
+│   ├── translator.py             # Traducción con deep-translator / MyMemory (HU-05)
+│   ├── language_validator.py     # Validación del idioma que escribe el usuario
+│   ├── text_splitter.py          # Troceado de textos largos para MyMemory
+│   ├── translation_errors.py     # Errores controlados del servicio de traducción
 │   └── exporter/                 # Paquete de exportación (TXT / PDF)
 │       ├── document_exporter.py  # Orquestador de la exportación
 │       ├── validators.py         # Validación de entradas y saneo de nombres
@@ -241,20 +245,45 @@ La configuración vive en `src/logging_config.py` (`setup_logging()`).
 
 ---
 
-## 🔌 Módulo de traducción (pendiente — HU-04)
+## 🔌 Módulo de traducción (HU-05)
 
-`src/translator.py` entrega el **contrato** que la CLI consume:
+`src/translator.py` entrega la clase que la CLI invoca:
 
 ```python
-class DeepTranslateTranslator:
-    def translate(self, text: str, target_language: str) -> str: ...
+from src.translator import DeepTranslateTranslator
+
+service = DeepTranslateTranslator()          # origen "es-ES" (es.wikipedia.org)
+texto_traducido = service.translate(texto, "en")   # "en", "inglés", "en-GB"...
 ```
 
-Mientras no esté implementado, `translate()` lanza
-`ServiceUnavailableError` y la CLI lo informa con el mensaje
-*"Traducción omitida: el módulo de traducción (DeepTranslate) aún no está
-implementado"*, continuando con el contenido sin traducir. Para integrarlo:
-basta con implementar `translate()` en esa clase, sin tocar el resto del flujo.
+- Se aplica **siempre al final** del flujo, sobre el contenido resultante
+  (resumen → enriquecido → original), y lo traducido es lo que se exporta.
+- El texto se trocea solo por párrafos y frases para respetar el límite de
+  MyMemory (menos de 500 caracteres por petición).
+- Acepta el nombre en español (`inglés`), en inglés (`english`) o el código de
+  MyMemory (`en-GB`), sin importar mayúsculas ni tildes.
+- Los errores de red, de idioma o de cuota llegan a la CLI como
+  `TranslationServiceError` y se muestran como *"Traducción omitida: …"*:
+  la aplicación nunca se cae por un fallo del traductor.
+
+### Cuota diaria de MyMemory (⭐)
+
+MyMemory es gratuita y **no necesita clave de API**, pero limita a **5.000
+caracteres al día por IP**. Un artículo de Wikipedia de cinco párrafos ronda los
+3.500, de modo que **sin configurar el email solo cabe una o dos traducciones al
+día**; la siguiente devuelve el aviso *"Se ha superado el límite de peticiones de
+MyMemory"*.
+
+Para subir la cuota a **50.000 caracteres al día**, añade tu correo en el
+`.env` (el servicio lo usa como identificador, no es un secreto):
+
+```bash
+MYMEMORY_EMAIL=tu_correo@example.com
+```
+
+> La cuota se reinicia al día siguiente. `.env.example` ya incluye la variable
+> y la lectura es opcional: si está vacía, la traducción funciona igual pero
+> con menos margen.
 
 ---
 
@@ -265,4 +294,4 @@ basta con implementar `translate()` en esa clase, sin tocar el resto del flujo.
 | "No enriqueció nada" | Falta `.env` con `OPENAI_API_KEY` | Revisa `.env` (`OPENAI_API_KEY` y `OPENAI_BASE_URL`) |
 | El PDF sale con caracteres raros | Fuente sin cobertura Unicode | Resuelto: `src/exporter/pdf_fonts.py` registra una TTF del sistema |
 | El TXT se abre con tildes rotas en Windows | Falta el BOM UTF-8 | Resuelto: se escribe con `utf-8-sig` |
-| "Traducción omitida" | HU-04 sin entregar | Comportamiento esperado hasta que el equipo la integre |
+| "Traducción omitida" | Cuota diaria de MyMemory agotada (5.000 caracteres/día) | Espera a que se reinicie o añade `MYMEMORY_EMAIL` en `.env` (50.000/día) |

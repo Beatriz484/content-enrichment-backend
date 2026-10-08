@@ -7,6 +7,7 @@ from src.errors import ServiceUnavailableError
 from src.main import (
     _create_enricher,
     _setup_console,
+    ask_choice,
     ask_format,
     ask_text,
     confirm,
@@ -39,9 +40,9 @@ def run_cli(
 ):
     """Lanza la CLI con dependencias simuladas y devuelve los mocks.
 
-    El orden esperado de ``inputs`` es el del circuito: tema, resumen, idioma,
-    guardar, formato y nombre (sin IA se omite la pregunta del resumen). Si se
-    pasa ``prompts``, se rellena con las preguntas en el orden en que la CLI las
+    El orden esperado de ``inputs`` es el del circuito: tema, elección enriquecido/original,
+    resumen, idioma, guardar, formato y nombre (sin IA se omiten la elección y el resumen).
+    Si se pasa ``prompts``, se rellena con las preguntas en el orden en que la CLI las
     hace, para poder verificar ese circuito.
     """
     enricher_factory = (
@@ -167,11 +168,19 @@ def test_ask_format_retries_until_valid(capsys):
     assert "Formato no válido" in capsys.readouterr().out
 
 
+def test_ask_choice_retries_until_valid_option(capsys):
+    """La elección entre original y enriquecido vuelve a preguntar si no es 1 ni 2."""
+    with patch("builtins.input", side_effect=["3", "2"]):
+        assert ask_choice("➤ Elige una opción (1 / 2): ", ("1", "2")) == "2"
+
+    assert "Opción no válida" in capsys.readouterr().out
+
+
 # --- Resultado único del informe -----------------------------------------------
 
 def test_export_saves_one_result_and_never_asks_for_parts(capsys):
     """Requisito: un solo resultado en el archivo y ninguna pregunta de secciones."""
-    inputs = ["python", "n", "", "s", "txt", "informe_test"]
+    inputs = ["python", "2", "n", "", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
 
@@ -181,13 +190,24 @@ def test_export_saves_one_result_and_never_asks_for_parts(capsys):
     assert call["content_data"]["body"] == ENRICHED_TEXT
 
 
+def test_export_saves_original_wikipedia_if_chosen(capsys):
+    """El usuario puede elegir conservar el texto original de Wikipedia."""
+    inputs = ["python", "1", "n", "", "s", "txt", "informe_test"]
+    code, exporter_cls, _, _ = run_cli(inputs)
+    output = capsys.readouterr().out
+
+    assert code == 0
+    assert "Se mantendrá el texto original de Wikipedia" in output
+    call = exporter_cls.return_value.export_content.call_args.kwargs
+    assert call["content_data"]["body"] == FULL_TEXT
+
+
 def test_export_result_is_the_last_stage_of_the_chain():
     """La traducción es la última etapa: manda sobre resumen y enriquecido."""
-    inputs = ["python", "s", "fr", "s", "pdf", "informe"]
+    inputs = ["python", "2", "s", "fr", "s", "pdf", "informe"]
     code, exporter_cls, _, translator = run_cli(inputs)
 
     assert code == 0
-    # La traducción recibe el resumen, que a su vez parte del enriquecido.
     translator.translate.assert_called_once_with("Resumen ejecutivo", "fr")
     call = exporter_cls.return_value.export_content.call_args.kwargs
     assert call["content_data"]["body"] == "Texto traducido"
@@ -219,7 +239,7 @@ def test_research_topic_propagates_scraper_errors():
 
 def test_full_flow_exports_the_single_final_result():
     """Requisito: el archivo recibe un único resultado, el de la última etapa."""
-    inputs = ["python", "s", "fr", "s", "txt", "informe_test"]
+    inputs = ["python", "2", "s", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, scraper_cls, _ = run_cli(inputs)
 
     assert code == 0
@@ -234,7 +254,7 @@ def test_full_flow_exports_the_single_final_result():
 def test_flow_asks_actions_after_showing_the_search_results(capsys):
     """Requisito: la búsqueda se muestra antes de pedir resumen e idioma."""
     events = []
-    answers = iter(["python", "s", "fr", "s", "txt", "informe_test"])
+    answers = iter(["python", "2", "s", "fr", "s", "txt", "informe_test"])
 
     def record_input(prompt=""):
         events.append(prompt)
@@ -261,7 +281,6 @@ def test_flow_asks_actions_after_showing_the_search_results(capsys):
         )
         assert main() == 0
 
-    # El circuito es: tema → Wikipedia → resumen → idioma (la última petición).
     wikipedia_at = events.index("wikipedia")
     summary_at = next(i for i, event in enumerate(events) if "resumen" in event)
     language_at = next(i for i, event in enumerate(events) if "Idioma" in event)
@@ -271,7 +290,7 @@ def test_flow_asks_actions_after_showing_the_search_results(capsys):
 
 def test_flow_shows_wikipedia_content_before_export(capsys):
     """Requisito: la extracción se muestra en terminal durante el flujo."""
-    inputs = ["python", "n", "", "s", "txt", "informe_test"]
+    inputs = ["python", "2", "n", "", "s", "txt", "informe_test"]
     code, _, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
 
@@ -307,25 +326,23 @@ def test_flow_stops_when_wikipedia_falls():
 
 def test_flow_reports_unavailable_translation(capsys):
     """Mientras el módulo no esté entregado se avisa y la traducción se omite."""
-    inputs = ["python", "n", "fr", "s", "txt", "informe_test"]
+    inputs = ["python", "2", "n", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs, translation_error=True)
     output = capsys.readouterr().out
 
     assert code == 0
     assert "Traducción omitida" in output
     assert "CONTENIDO TRADUCIDO" not in output
-    # Sin traducción manda el último eslabón disponible: el enriquecido.
     call = exporter_cls.return_value.export_content.call_args.kwargs
     assert call["content_data"]["body"] == ENRICHED_TEXT
 
 
 def test_flow_translates_the_final_content():
     """Si el traductor está disponible, la traducción se muestra y se puede guardar."""
-    inputs = ["python", "n", "fr", "s", "pdf", "informe"]
+    inputs = ["python", "2", "n", "fr", "s", "pdf", "informe"]
     code, exporter_cls, _, translator = run_cli(inputs)
 
     assert code == 0
-    # La traducción se aplica al final, sobre el contenido resultante.
     translator.translate.assert_called_once_with(ENRICHED_TEXT, "fr")
     call = exporter_cls.return_value.export_content.call_args.kwargs
     assert call["output_format"] == "pdf"
@@ -334,7 +351,7 @@ def test_flow_translates_the_final_content():
 
 def test_discarding_the_report_skips_export():
     """El usuario puede abandonar sin escribir nada en disco."""
-    code, exporter_cls, _, _ = run_cli(["python", "n", "", "no"])
+    code, exporter_cls, _, _ = run_cli(["python", "2", "n", "", "no"])
 
     assert code == 0
     exporter_cls.return_value.export_content.assert_not_called()
@@ -343,7 +360,7 @@ def test_discarding_the_report_skips_export():
 def test_export_failure_returns_error_code():
     """Un fallo del exportador se devuelve como código de salida distinto de cero."""
     code, _, _, _ = run_cli(
-        ["python", "n", "", "s", "txt", "informe_test"],
+        ["python", "2", "n", "", "s", "txt", "informe_test"],
         export_result=(False, "Error de Validación: formato"),
     )
 

@@ -30,10 +30,10 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
 
-NOMBRE_FUENTE = "ContentEnricherUnicode"
+FONT_NAME = "ContentEnricherUnicode"
 
 # Rutas habituales de una TTF con cobertura Unicode completa.
-FUENTES_CANDIDATAS = (
+CANDIDATE_FONT_PATHS = (
     # Windows
     r"C:\Windows\Fonts\arial.ttf",
     r"C:\Windows\Fonts\calibri.ttf",
@@ -48,7 +48,7 @@ FUENTES_CANDIDATAS = (
 )
 
 # Repertorio WinAnsi que Helvetica sí sabe dibujar (se usa como fallback).
-_CODIGOS_PERMITIDOS: Set[int] = (
+_ALLOWED_CODEPOINTS: Set[int] = (
     {0x0A}  # salto de línea
     | set(range(0x20, 0x7F))  # ASCII imprimible
     | set(range(0xA0, 0x100))  # Latin-1 supplement
@@ -57,60 +57,60 @@ _CODIGOS_PERMITIDOS: Set[int] = (
 
 
 @lru_cache(maxsize=1)
-def _buscar_fuente_unicode() -> Optional[str]:
+def _find_unicode_font() -> Optional[str]:
     """Registra la primera TTF Unicode disponible y devuelve su nombre.
 
     El resultado se memoriza: registrar la misma fuente dos veces es inútil y
-    los tests pueden limpiar la caché con ``_buscar_fuente_unicode.cache_clear()``.
+    los tests pueden limpiar la caché con ``_find_unicode_font.cache_clear()``.
     """
-    for ruta in FUENTES_CANDIDATAS:
-        if not os.path.isfile(ruta):
+    for path in CANDIDATE_FONT_PATHS:
+        if not os.path.isfile(path):
             continue
         try:
-            pdfmetrics.registerFont(TTFont(NOMBRE_FUENTE, ruta))
+            pdfmetrics.registerFont(TTFont(FONT_NAME, path))
         except Exception as error:  # noqa: BLE001 - una fuente corrupta no debe tumbar el informe
-            logger.warning("Fuente descartada '%s': %s", ruta, error)
+            logger.warning("Fuente descartada '%s': %s", path, error)
             continue
-        logger.info("Fuente Unicode registrada para PDF: %s", ruta)
-        return NOMBRE_FUENTE
+        logger.info("Fuente Unicode registrada para PDF: %s", path)
+        return FONT_NAME
     return None
 
 
-def fuente_unicode() -> Optional[str]:
+def unicode_font() -> Optional[str]:
     """Nombre de la fuente Unicode registrada, o ``None`` si no hay ninguna."""
-    return _buscar_fuente_unicode()
+    return _find_unicode_font()
 
 
-def limpiar(texto: str) -> str:
+def clean_text(text: str) -> str:
     """Normaliza el texto extraído: espacios duros, saltos y espacios repetidos."""
-    sin_espacios_duros = str(texto).replace("\xa0", " ").replace("\r\n", "\n")
-    return re.sub(r"[ \t]+", " ", sin_espacios_duros).strip()
+    text_without_hard_spaces = str(text).replace("\xa0", " ").replace("\r\n", "\n")
+    return re.sub(r"[ \t]+", " ", text_without_hard_spaces).strip()
 
 
-def sanear(texto: str) -> str:
+def sanitize_text(text: str) -> str:
     """Deja el texto dentro del repertorio WinAnsi (fallback sin TTF Unicode).
 
     Descompone los caracteres acentuados (``ĭ`` → ``i`` + acento), descarta los
     diacríticos y los símbolos que Helvetica no sabe dibujar y recoloca los
     espacios que queden sueltos.
     """
-    descompuesto = unicodedata.normalize("NFD", texto)
-    sin_diacriticos = "".join(
-        caracter for caracter in descompuesto if not unicodedata.combining(caracter)
+    decomposed = unicodedata.normalize("NFD", text)
+    without_diacritics = "".join(
+        char for char in decomposed if not unicodedata.combining(char)
     )
-    filtrado = "".join(
-        caracter for caracter in sin_diacriticos if ord(caracter) in _CODIGOS_PERMITIDOS
+    filtered = "".join(
+        char for char in without_diacritics if ord(char) in _ALLOWED_CODEPOINTS
     )
-    return re.sub(r" +", " ", filtrado).strip()
+    return re.sub(r" +", " ", filtered).strip()
 
 
-def preparar(texto: str) -> str:
+def prepare_text(text: str) -> str:
     """Prepara texto libre de Wikipedia para ser interpretado por ``Paragraph``.
 
     Limpia, escapa el XML (``<...>`` y ``&``) y, si no hay fuente Unicode
     registrada, sana los caracteres que Helvetica no podría dibujar.
     """
-    limpio = limpiar(texto)
-    if fuente_unicode() is None:
-        limpio = sanear(limpio)
-    return escape(limpio).replace("\n", "<br/>")
+    cleaned = clean_text(text)
+    if unicode_font() is None:
+        cleaned = sanitize_text(cleaned)
+    return escape(cleaned).replace("\n", "<br/>")
