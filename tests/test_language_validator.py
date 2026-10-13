@@ -1,4 +1,3 @@
-"""Tests de la validación del idioma (tests/features/translator.feature)."""
 import pytest
 
 from src.language_validator import ask_language, is_valid_language, validate_language
@@ -6,7 +5,6 @@ from src.translation_errors import InvalidLanguageError
 
 
 def entrada_simulada(respuestas):
-    """Crea una función que sustituye a input() y devuelve las respuestas en orden."""
     pendientes = list(respuestas)
 
     def leer(mensaje):
@@ -15,7 +13,6 @@ def entrada_simulada(respuestas):
     return leer
 
 
-# Esquema del escenario: Escribir un idioma válido (una fila = una ejecución)
 @pytest.mark.parametrize(
     "entrada, codigo",
     [
@@ -34,12 +31,10 @@ def entrada_simulada(respuestas):
     ],
 )
 def test_escribir_un_idioma_valido(entrada, codigo):
-    """Esquema del escenario: Escribir un idioma válido."""
     assert is_valid_language(entrada) is True
     assert validate_language(entrada) == codigo
 
 
-# Esquema del escenario: Escribir un idioma con errores
 @pytest.mark.parametrize(
     "entrada, mensaje",
     [
@@ -58,20 +53,17 @@ def test_escribir_un_idioma_valido(entrada, codigo):
     ],
 )
 def test_escribir_un_idioma_con_errores(entrada, mensaje):
-    """Esquema del escenario: Escribir un idioma con errores."""
     assert is_valid_language(entrada) is False
     with pytest.raises(InvalidLanguageError, match=mensaje):
         validate_language(entrada)
 
 
 def test_recibir_el_idioma_vacio_desde_el_formulario():
-    """Escenario: Recibir el idioma vacío desde el formulario."""
     with pytest.raises(InvalidLanguageError, match="No has escrito ningún idioma"):
         validate_language(None)
 
 
 def test_un_intento_fallido_y_despues_uno_correcto(capsys):
-    """Escenario: Un intento fallido y después uno correcto."""
     codigo = ask_language(input_func=entrada_simulada(["espanil", "francés"]))
 
     assert "no existe o está mal escrito" in capsys.readouterr().out
@@ -79,7 +71,6 @@ def test_un_intento_fallido_y_despues_uno_correcto(capsys):
 
 
 def test_agotar_los_intentos():
-    """Escenario: Agotar los intentos."""
     with pytest.raises(InvalidLanguageError, match="Has agotado los 3 intentos"):
         ask_language(input_func=entrada_simulada(["3spañol", "123", ""]), max_attempts=3)
 

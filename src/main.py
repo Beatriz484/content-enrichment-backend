@@ -1,19 +1,3 @@
-"""Interfaz de línea de comandos del Content Enricher.
-
-Flujo: tema → Wikipedia → enriquecimiento IA → resumen (si se pide) →
-traducción (siempre la última petición) → exportación de **un único resultado**.
-
-Cada decisión del usuario se pregunta en el momento en el que le toca: el tema
-abre el proceso, el resumen se ofrece tras ver el contenido enriquecido y el
-idioma se pide justo antes de traducir. El archivo final recibe el último
-eslabón de la cadena realmente generado, sin preguntar qué partes guardar.
-
-Esta capa **solo** muestra resultados y pide decisiones al usuario. La lógica de
-cada servicio vive en su módulo: ``src/scraper.py`` (extracción),
-``src/enricher.py`` (IA), ``src/translator.py`` (traducción) y
-``src/exporter/`` (archivos). El diálogo con el usuario vive aquí mismo, de
-forma simplificada, para no dispersar la CLI en varios ficheros.
-"""
 import logging
 import sys
 from typing import Any, Dict, Optional, Tuple
@@ -33,10 +17,7 @@ NEGATIVE_ANSWERS: Tuple[str, ...] = ("n", "no")
 RULE = "-" * 56
 
 
-# --- Diálogo con el usuario -------------------------------------------------
-
 def ask_text(message: str) -> str:
-    """Pide un valor no vacío, repitiendo la pregunta si hace falta."""
     while True:
         answer = input(message).strip()
         if answer:
@@ -45,11 +26,6 @@ def ask_text(message: str) -> str:
 
 
 def confirm(message: str, default: bool = True) -> bool:
-    """Pregunta sí/no con reintento hasta obtener una respuesta válida.
-
-    Un ``Enter`` aplica ``default``; una respuesta explícita manda siempre
-    sobre ese valor por defecto.
-    """
     while True:
         answer = input(f"{message} (sí/no): ").strip().lower()
         if not answer:
@@ -62,7 +38,6 @@ def confirm(message: str, default: bool = True) -> bool:
 
 
 def ask_choice(message: str, options: Tuple[str, ...]) -> str:
-    """Pide al usuario seleccionar una opción válida."""
     while True:
         answer = input(message).strip()
         if answer in options:
@@ -71,13 +46,11 @@ def ask_choice(message: str, options: Tuple[str, ...]) -> str:
 
 
 def ask_language() -> Optional[str]:
-    """Pide el idioma de traducción. ``Enter`` mantiene el idioma original."""
     answer = input("➤ Idioma de traducción (ej. en, fr — Enter = original): ").strip()
     return answer.lower() if answer else None
 
 
 def ask_format() -> str:
-    """Pide el formato del informe hasta que sea 'txt' o 'pdf'."""
     while True:
         output_format = input("➤ Formato del informe (txt / pdf): ").strip().lower()
         if output_format in VALID_FORMATS:
@@ -85,18 +58,7 @@ def ask_format() -> str:
         print(f"⚠️  Formato no válido. Usa uno de: {', '.join(VALID_FORMATS)}.")
 
 
-# --- Pasos del flujo --------------------------------------------------------
-
 def research_topic(topic: str) -> Dict[str, Any]:
-    """Extrae título y primeros párrafos de Wikipedia.
-
-    Returns:
-        ``{"title": str, "paragraphs": list[str], "text": str}``
-
-    Raises:
-        ValueError: El artículo no existe.
-        ConnectionError: Fallo de conexión con Wikipedia.
-    """
     try:
         result = WikipediaScraper(topic).extract_content()
     except (ValueError, ConnectionError) as error:
@@ -117,7 +79,6 @@ def research_topic(topic: str) -> Dict[str, Any]:
 
 
 def show_investigation(research: Dict[str, Any]) -> None:
-    """Muestra en terminal el título y los párrafos extraídos."""
     print(f"\n=== TÍTULO: {research['title']} ===\n")
     for index, paragraph in enumerate(research["paragraphs"], 1):
         print(f"--- Párrafo {index} ---")
@@ -125,20 +86,17 @@ def show_investigation(research: Dict[str, Any]) -> None:
 
 
 def show_section(label: str, content: str) -> None:
-    """Muestra en terminal una sección de contenido con su rótulo."""
     print(f"=== {label} ===")
     print(f"{content}\n")
 
 
 def enrich_content(enricher: AiContentEnricher, text: str) -> str:
-    """Amplía el texto con IA y deja constancia en el log."""
     enriched = enricher.enrich_content(text)
     logger.info("IA: contenido enriquecido generado.")
     return enriched
 
 
 def summarize_content(enricher: AiContentEnricher, text: str) -> str:
-    """Genera un resumen del texto con IA y deja constancia en el log."""
     summary = enricher.summarize_content(text)
     logger.info("IA: resumen generado.")
     return summary
@@ -149,24 +107,12 @@ def translate_content(
     text: str,
     language: str,
 ) -> str:
-    """Traduce el texto al idioma indicado y deja constancia en el log.
-
-    Raises:
-        ServiceUnavailableError: mientras ``src/translator.py`` no esté entregado.
-    """
     translated = translator.translate(text, language)
     logger.info("Traducción al idioma '%s' completada.", language)
     return translated
 
 
-# --- Exportación ------------------------------------------------------------
-
 def export_report(title: str, content: str) -> int:
-    """Pide si guardar, en qué formato y con qué nombre, y escribe el archivo.
-
-    El informe es **unicamente** el resultado final de la cadena de procesado:
-    no se pregunta qué partes incluir porque solo hay una respuesta posible.
-    """
     if not confirm("¿Guardar el informe en disco?", True):
         print("Informe descartado.")
         logger.info("Informe descartado por el usuario.")
@@ -194,14 +140,7 @@ def export_report(title: str, content: str) -> int:
     return 0 if success else 1
 
 
-# --- Orquestación -----------------------------------------------------------
-
 def _create_enricher() -> Optional[AiContentEnricher]:
-    """Crea el cliente de IA o lo deja en ``None`` si faltan credenciales.
-
-    En ese caso se avisa en la terminal y el flujo continúa solo con el texto
-    original: sin IA no hay enriquecimiento ni resumen.
-    """
     try:
         return AiContentEnricher()
     except ValueError as error:
@@ -216,10 +155,8 @@ def _run() -> int:
     print("     CONTENT ENRICHER · INVESTIGACIÓN ASISTIDA")
     print("=" * 56)
 
-    # 1. Interacción: solo el tema abre el proceso ---------------------------
     topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
 
-    # 2. Scraping ------------------------------------------------------------
     print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
     try:
         research = research_topic(topic)
@@ -229,9 +166,6 @@ def _run() -> int:
     show_investigation(research)
     logger.info("Opción capturada: tema='%s'.", topic)
 
-    # 3. Enriquecimiento IA --------------------------------------------------
-    # Los resultados de Wikipedia ya están en pantalla: ahora sí se piden
-    # las acciones adicionales (primero el resumen, luego el idioma).
     enricher = _create_enricher()
     if enricher:
         print("[2/5] Enriqueciendo el contenido con IA...")
@@ -251,7 +185,6 @@ def _run() -> int:
         enriched = ""
         print("[2/5] Enriquecimiento omitido: no hay credenciales de IA.")
 
-    # 4. Resumen (extra) -----------------------------------------------------
     want_summary = False
     if enricher:
         want_summary = confirm("➤ ¿Generar un resumen del contenido con IA?", False)
@@ -260,20 +193,17 @@ def _run() -> int:
     summary = ""
     if want_summary:
         print("[3/5] Generando el resumen con IA...")
-        # El resumen se calcula sobre el contenido enriquecido, si existe.
         summary = summarize_content(enricher, enriched or research["text"])
         show_section("RESUMEN (IA)", summary)
     else:
         print("[3/5] Resumen omitido (no se solicitó).")
 
-    # 5. Traducción: la última petición del usuario y el último proceso ------
     language = ask_language()
     logger.info("Opción capturada: idioma=%s.", language or "original")
 
     translated = ""
     if language:
         print(f"[4/5] Traduciendo el contenido al idioma '{language}'...")
-        # La traducción se aplica siempre al final, sobre el contenido resultante.
         content = summary or enriched or research["text"]
         try:
             translated = translate_content(DeepTranslateTranslator(), content, language)
@@ -284,22 +214,12 @@ def _run() -> int:
     else:
         print("[4/5] Traducción omitida (idioma original).")
 
-    # 6. Exportación: un único resultado ------------------------------------
     print("[5/5] Exportación del informe.")
-    # El archivo recibe el último eslabón realmente generado de la cadena
-    # traducción → resumen → enriquecido → texto original.
     final_content = translated or summary or enriched or research["text"]
     return export_report(research["title"], final_content)
 
 
 def _setup_console() -> None:
-    """Evita que la CLI se rompa al redirigir la salida en Windows.
-
-    En Windows, cuando stdout/stdin van por tubería (no por consola), Python
-    usa la codificación regional (p. ej. cp1252) y los caracteres del interfaz
-    (➤, 🟢, tildes) lanzan UnicodeEncodeError. Se fuerza UTF-8 con reemplazo
-    seguro para que la aplicación nunca falle por codificación.
-    """
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure:
