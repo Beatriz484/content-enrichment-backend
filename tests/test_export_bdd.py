@@ -1,4 +1,3 @@
-"""Escenarios Gherkin de la exportación exclusiva (TXT y PDF)."""
 import os
 
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -13,8 +12,6 @@ def _leer_texto(ruta):
         return archivo.read()
 
 
-# --- Dado --------------------------------------------------------------------
-
 @given(
     parsers.parse('un informe con título "{titulo}" y cuerpo "{cuerpo}"'),
     target_fixture="contexto",
@@ -27,8 +24,6 @@ def informe_completo(titulo, cuerpo, tmp_path):
 def informe_sin_cuerpo(titulo, tmp_path):
     return {"directorio": tmp_path, "informe": {"topic": titulo}, "salida": None}
 
-
-# --- Cuando ------------------------------------------------------------------
 
 @when(parsers.parse('exporto el informe en formato "{formato}"'))
 def exportar(contexto, formato):
@@ -51,8 +46,6 @@ def intentar_nombre(contexto, nombre, formato):
     )
 
 
-# --- Entonces -----------------------------------------------------------------
-
 def _ruta_generada(contexto):
     exito, ruta = contexto["salida"]
     assert exito is True, ruta
@@ -74,7 +67,6 @@ def archivo_contiene_titulo(contexto, texto):
 def archivo_contiene_cuerpo(contexto, texto):
     contenido = _leer_texto(_ruta_generada(contexto))
     assert texto in contenido
-    # El cuerpo aparece después del título, no fusionado con él
     assert contenido.index(texto) > contenido.index("TÍTULO:")
 
 

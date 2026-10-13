@@ -1,4 +1,3 @@
-"""Tests del orquestador de exportación."""
 import os
 
 from src.exporter.document_exporter import DocumentExporter
@@ -7,14 +6,12 @@ INFORME = {"topic": "Integración", "body": "Contenido de la variante pedida."}
 
 
 def test_document_exporter_initialization(tmp_path):
-    """Prueba que se cree el directorio de salida si no existe."""
     target_dir = tmp_path / "new_output_dir"
     DocumentExporter(output_dir=str(target_dir))
     assert os.path.exists(target_dir)
 
 
 def test_export_content_txt_success(tmp_path):
-    """Flujo completo exitoso para TXT."""
     exporter = DocumentExporter(output_dir=str(tmp_path))
 
     is_success, file_path = exporter.export_content("informe_test", "txt", INFORME)
@@ -25,7 +22,6 @@ def test_export_content_txt_success(tmp_path):
 
 
 def test_export_content_pdf_success(tmp_path):
-    """Flujo completo exitoso para PDF."""
     exporter = DocumentExporter(output_dir=str(tmp_path))
 
     is_success, file_path = exporter.export_content("informe_test", "pdf", INFORME)
@@ -36,7 +32,6 @@ def test_export_content_pdf_success(tmp_path):
 
 
 def test_export_content_no_duplica_la_extension(tmp_path):
-    """Si el nombre ya trae la extensión, no se añade una segunda."""
     exporter = DocumentExporter(output_dir=str(tmp_path))
 
     is_success, file_path = exporter.export_content("informe.txt", "txt", INFORME)
@@ -46,7 +41,6 @@ def test_export_content_no_duplica_la_extension(tmp_path):
 
 
 def test_export_content_validation_failure(tmp_path):
-    """No se crea ningún archivo si falla la validación temprana."""
     exporter = DocumentExporter(output_dir=str(tmp_path))
 
     is_success, error_msg = exporter.export_content("informe_fallido", "doc", {})
@@ -65,7 +59,6 @@ def _disco_lleno(*args, **kwargs):
 
 
 def test_export_content_permisos_insuficientes(tmp_path, monkeypatch):
-    """Un error de permisos del SO se traduce en un mensaje accionable."""
     from src.exporter import document_exporter
 
     monkeypatch.setattr(document_exporter.TxtExporter, "generate", _permiso_denegado)
@@ -79,7 +72,6 @@ def test_export_content_permisos_insuficientes(tmp_path, monkeypatch):
 
 
 def test_export_content_error_inesperado(tmp_path, monkeypatch):
-    """Cualquier otro fallo queda capturado y devuelto como detalle."""
     from src.exporter import document_exporter
 
     monkeypatch.setattr(document_exporter.TxtExporter, "generate", _disco_lleno)
