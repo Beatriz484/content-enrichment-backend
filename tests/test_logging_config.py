@@ -1,11 +1,9 @@
-"""Tests de la configuración de logging (consola + archivo de log)."""
 import logging
 
 from src.logging_config import DEFAULT_LOG_FILE, setup_logging
 
 
 def test_setup_logging_crea_el_archivo_de_log(tmp_path):
-    """Debe crear el directorio y escribir las trazas en el archivo indicado."""
     log_file = tmp_path / "logs" / "app.log"
     logger = setup_logging(log_file=str(log_file))
 
@@ -19,7 +17,6 @@ def test_setup_logging_crea_el_archivo_de_log(tmp_path):
 
 
 def test_setup_logging_es_idempotente(tmp_path):
-    """Varias invocaciones no deben acumular handlers duplicados."""
     log_file = tmp_path / "app.log"
 
     setup_logging(log_file=str(log_file))
@@ -29,7 +26,6 @@ def test_setup_logging_es_idempotente(tmp_path):
 
 
 def _handlers_hacia(logger: logging.Logger, log_file) -> list:
-    """Handlers de archivo apuntando exactamente a ``log_file`` (ignora los de pytest)."""
     destino = str(log_file.resolve())
     return [
         handler
@@ -40,5 +36,4 @@ def _handlers_hacia(logger: logging.Logger, log_file) -> list:
 
 
 def test_archivo_de_log_por_defecto():
-    """El archivo por defecto del proyecto es logs/app.log (está en .gitignore)."""
     assert DEFAULT_LOG_FILE == "logs/app.log"

@@ -2,10 +2,8 @@ import pytest
 from pytest_bdd import scenarios, given, when, then, parsers
 from src.scraper import WikipediaScraper
 
-# Estos escenarios consultan Wikipedia en tiempo real: se ejecutan con `pytest -m integration`
 pytestmark = pytest.mark.integration
 
-# Conectamos este archivo Python con el archivo .feature que creamos antes
 scenarios('features/scraper.feature')
 
 @given(parsers.parse('que configuro el scraper con el tema "{topic}"'), target_fixture="test_data")

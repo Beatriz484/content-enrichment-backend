@@ -1,9 +1,3 @@
-"""Generación del archivo PDF con la variante exacta solicitada.
-
-El texto pasa por ``pdf_fonts.prepare_text`` para que los caracteres fuera de
-Helvetica no salgan corruptos y para que las secuencias ``<...>`` del texto de
-Wikipedia no se interpreten como etiquetas de marcado.
-"""
 from typing import Any, Dict
 
 from reportlab.lib.pagesizes import letter
@@ -17,7 +11,6 @@ SEPARATOR = "=" * 60
 
 
 def _build_styles(font: str):
-    """Construye los estilos del informe sobre la fuente resuelta."""
     base = getSampleStyleSheet()
     return (
         ParagraphStyle(
@@ -44,7 +37,6 @@ def _build_styles(font: str):
 class PdfExporter:
     @staticmethod
     def generate(file_path: str, content_data: Dict[str, Any]) -> str:
-        """Escribe título y cuerpo de la variante pedida. Nada más."""
         font = unicode_font() or "Helvetica"
         title_style, body_style = _build_styles(font)
 

@@ -1,10 +1,3 @@
-"""Extracción de contenido desde Wikipedia.
-
-Estrategia: primero se intenta acceder directamente al artículo construyendo
-la URL con el tema indicado. Si Wikipedia responde 404 (el tema no coincide con
-el título real), se recurre a la búsqueda de la API como respaldo para localizar
-el artículo más relevante.
-"""
 import re
 from typing import Optional
 
@@ -20,10 +13,6 @@ HEADERS = {
 
 
 class WikipediaScraper:
-    """
-    Clase responsable exclusivamente de realizar el web scraping en Wikipedia.
-    Cumple con el principio de responsabilidad única (SRP).
-    """
 
     def __init__(self, topic: str):
         if not topic or not topic.strip():
@@ -32,16 +21,10 @@ class WikipediaScraper:
         self.base_url = "https://es.wikipedia.org/wiki/"
 
     def _build_url(self, title: Optional[str] = None) -> str:
-        """Construye la URL del artículo a partir del tema o de un título alternativo."""
         reference = title if title else self.topic
         return self.base_url + reference.replace(" ", "_")
 
     def _get_response(self, url: str, params: Optional[dict] = None) -> Optional[requests.Response]:
-        """Realiza la petición y devuelve la respuesta, o ``None`` si es un 404.
-
-        Raises:
-            ConnectionError: Si la petición falla por red o por otro estado HTTP.
-        """
         try:
             response = requests.get(url, headers=HEADERS, timeout=10, params=params)
         except requests.exceptions.RequestException as error:
@@ -58,7 +41,6 @@ class WikipediaScraper:
         return response
 
     def _search_title(self) -> Optional[str]:
-        """Busca en Wikipedia el artículo más relevante para el tema (respaldo del 404)."""
         params = {
             "action": "query",
             "list": "search",
@@ -84,16 +66,10 @@ class WikipediaScraper:
 
     @staticmethod
     def _clean_text(text: str) -> str:
-        """Normaliza el párrafo extraído.
-
-        Wikipedia inserta espacios duros (``\\xa0``) y espacios repetidos que
-        después se ven corruptos en el TXT/PDF, así que se normalizan en origen.
-        """
         return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
 
     @staticmethod
     def _extract_paragraphs(soup: BeautifulSoup) -> list:
-        """Devuelve los primeros ``MAX_PARAGRAPHS`` párrafos con contenido del artículo."""
         content_div = soup.find(id="mw-content-text")
         paragraphs_html = content_div.find_all("p", recursive=True) if content_div else []
 
@@ -107,19 +83,9 @@ class WikipediaScraper:
         return paragraphs
 
     def extract_content(self) -> dict:
-        """Extrae título y primeros párrafos del artículo.
-
-        Returns:
-            ``{"title": str, "paragraphs": list[str]}``
-
-        Raises:
-            ValueError: Si el artículo no existe (tampoco en la búsqueda de respaldo).
-            ConnectionError: Si falla la conexión con Wikipedia.
-        """
         alternative_title = None
         response = self._get_response(self._build_url())
 
-        # Respaldo: el tema no coincide con ningún artículo → se busca por texto
         if response is None:
             alternative_title = self._search_title()
             if not alternative_title:
