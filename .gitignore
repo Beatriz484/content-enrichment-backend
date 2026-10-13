@@ -18,7 +18,4 @@ logs/*.log
 .coverage
 .pytest_cache/
 
-# Kilo Code (worktrees de agentes IA)
-.kilo/
-
 output/
