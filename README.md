@@ -36,7 +36,7 @@
 - **IA:** `openai` (API compatible con OpenAI)
 - **Traducción:** `deep-translator` (servicio MyMemory, sin clave de API)
 - **Generación de PDF:** `reportlab`
-- **Testing & Cobertura:** `pytest`, `pytest-cov`, `pytest-bdd`
+- **Testing & Cobertura:** `pytest`, `pytest-cov`
 - **Validaciones & Git Hooks:** `pre-commit` (Conventional Commits)
 - **Variables de Entorno:** `python-dotenv`
 
@@ -68,21 +68,29 @@ content-enrichment-backend/
 │       ├── pdf_fonts.py            # Fuente Unicode y preparación de texto del PDF
 │       ├── txt_exporter.py         # Generación de TXT (UTF-8 con BOM)
 │       └── pdf_exporter.py         # Generación de PDF (ReportLab)
-├── tests/                          # Suite de pruebas automáticas
-│   ├── features/                   # Escenarios Gherkin
-│   │   ├── scraper.feature
-│   │   └── export.feature
+├── tests/                          # Suite de pruebas (Gherkin embebido en cada test)
 │   ├── test_exporter/
+│   │   ├── __init__.py
+│   │   ├── test_document_exporter.py   # Orquestación y errores controlados
+│   │   ├── test_pdf_exporter.py        # Exportación exclusiva a PDF
+│   │   ├── test_pdf_fonts.py           # Fuente Unicode y saneo de texto
+│   │   ├── test_txt_exporter.py        # Exportación exclusiva a TXT (UTF-8 con BOM)
+│   │   └── test_validators.py          # Validación de nombre, formato y contenido
 │   ├── test_translation/
-│   ├── test_export_bdd.py
+│   │   ├── __init__.py
+│   │   ├── test_deep_translate_service.py  # Traducción y errores de MyMemory
+│   │   ├── test_language_validator.py      # Idiomas válidos, inválidos e intentos
+│   │   ├── test_text_splitter.py           # Troceado de textos largos
+│   │   └── test_translator.py              # Contrato del traductor
 │   ├── test_cli.py                 # Flujo completo de la CLI (sin red ni IA real)
-│   ├── test_prompts.py             # Diálogo con el usuario
+│   ├── test_enricher.py            # Enriquecimiento y resúmenes con IA
+│   ├── test_logging_config.py      # Archivo de log y configuración
 │   ├── test_pipeline.py            # Etapas del proceso
-│   ├── test_scraper.py
-│   ├── test_enricher.py
-│   └── ...
+│   ├── test_prompts.py             # Diálogo con el usuario
+│   └── test_scraper.py             # Wikipedia con mock + 2 escenarios en vivo
 ├── .pre-commit-config.yaml
 ├── requirements.txt                # Dependencias de ejecución y desarrollo
+├── pytest.ini                      # Rutas, marcadores y selección por defecto
 └── README.md
 ```
 
@@ -206,7 +214,7 @@ docs: update setup instructions in README
 ## 🧪 Ejecución de Pruebas (Testing)
 
 ```bash
-# Pruebas unitarias y BDD sin red (por defecto)
+# Pruebas unitarias sin red (por defecto)
 pytest
 
 # Escenarios Gherkin que consultan Wikipedia en tiempo real
@@ -218,13 +226,66 @@ pytest --cov=src --cov-report=term-missing
 
 **Estado actual: 100 % de cobertura sobre `src/`.**
 
-La documentación Gherkin (`tests/features/`) cubre los dos tipos de caso que
-exige el documento de requisitos:
+### Convención Gherkin embebida en los tests
 
-| Fichero | Contenido |
+**No existe la carpeta `tests/features/`**: cada test lleva dentro su escenario
+Gherkin en inglés, de modo que el escenario y su implementación no pueden
+desincronizarse ni queda la duda de a qué test corresponde cada fichero
+`.feature`.
+
+El `Feature` se escribe **una sola vez** en la cabecera del módulo y cada
+función de test lleva su `Scenario`:
+
+```python
+r"""Feature: TXT export of the requested variant
+
+  As a Content Enricher user
+  I want the TXT file to contain exactly the variant I asked for
+  So that I never receive text or notes that I did not request
+"""
+
+
+def test_txt_exports_only_title_and_body(tmp_path):
+    r"""@successful
+
+    Scenario: Save only the requested variant to TXT
+        Given a report with title "Python Testing" and body "Únicamente la variante solicitada."
+        When I export the report in "txt" format
+        Then the file is created successfully
+        And the file contains the title "Python Testing"
+        And the file contains no section that was not requested
+    """
+    ...
+```
+
+**Reglas de la convención**
+
+- Los docstrings son **raw** (`r"""`): datos como `\n` o `\xa0` se quedan
+  literales, igual que los vería un fichero `.feature` de verdad.
+- La prosa va **en inglés**; los datos de ejemplo se quedan en español porque
+  son las cadenas reales que escribe el producto y traducirlos rompería las
+  aserciones.
+- Un escenario = una función de test, y siempre es **un único flujo**
+  `Given → When → Then → And` (nunca se encadenan dos `Given` en el mismo
+  escenario).
+- Los casos con muchos ejemplos se escriben como `Scenario Outline` con su
+  tabla `Examples`, en paralelo al `@pytest.mark.parametrize` del test. Los
+  valores de entrada van entrecomillados para que Gherkin no les recorte los
+  espacios.
+
+**Etiquetas de escenario** — los dos tipos de caso que exige el documento de
+requisitos:
+
+| Etiqueta Gherkin | Significado |
 |---|---|
-| `scraper.feature` | Extracción correcta y artículo inexistente |
-| `export.feature` | Exportación exclusiva (`@exitoso`) y validaciones (`@fallido`) |
+| `@successful` | Caso feliz: lo que debe ocurrir cuando todo va bien |
+| `@failure` | Rechazo controlado: validación denegada, error de red, cuota agotada, artículo inexistente… |
+
+**Marcador de ejecución**
+
+| Marcador | Significado |
+|---|---|
+| `@pytest.mark.integration` | Pega a servicios externos (Wikipedia real). Desactivado por defecto; se lanza con `pytest -m integration` |
 
 ---
 
