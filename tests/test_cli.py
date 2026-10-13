@@ -193,7 +193,7 @@ def test_flow_stops_when_wikipedia_falls():
         scraper_error=ValueError("no existe"),
     )
 
-    assert code == 1
+    assert code == 130
     exporter_cls.return_value.export_content.assert_not_called()
 
 
@@ -239,3 +239,23 @@ def test_export_failure_returns_error_code():
 def test_user_cancellation_returns_130():
     with patch("src.cli.setup_logging"), patch("builtins.input", side_effect=EOFError):
         assert main() == 130
+
+
+def test_flow_handles_disambiguation_choice(capsys):
+    inputs = ["python", "1", "2", "n", "", "s", "txt", "informe_test"]
+
+    with patch("src.cli.setup_logging"), \
+            patch("src.pipeline.AiContentEnricher", return_value=_enricher_mock()), \
+            patch("src.cli.get_topic_suggestions", return_value=["Python (lenguaje)"]), \
+            patch("src.cli.research_topic", side_effect=[
+                {"title": "Python", "paragraphs": [], "text": ""},
+                {"title": "Python (lenguaje)", "paragraphs": ["Párrafo uno."], "text": "Párrafo uno."},
+            ]), \
+            patch("src.cli.DeepTranslateTranslator"), \
+            patch("src.cli.DocumentExporter") as exporter_cls, \
+            patch("builtins.input", side_effect=inputs):
+        exporter_cls.return_value.export_content.return_value = (True, "output/informe_test.txt")
+        code = main()
+
+    assert code == 0
+    assert "es una página de desambiguación" in capsys.readouterr().out

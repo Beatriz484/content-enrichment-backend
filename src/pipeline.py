@@ -1,11 +1,19 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .enricher import AiContentEnricher
 from .scraper import WikipediaScraper
 from .translation import DeepTranslateTranslator
 
 logger = logging.getLogger(__name__)
+
+
+def get_topic_suggestions(topic: str, limit: int = 5) -> List[str]:
+    try:
+        return WikipediaScraper(topic).get_search_suggestions(limit=limit)
+    except (ValueError, ConnectionError) as error:
+        logger.warning("Wikipedia sugerencias: %s", error)
+        return []
 
 
 def research_topic(topic: str) -> Dict[str, Any]:

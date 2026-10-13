@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.pipeline import _create_enricher, research_topic
+from src.pipeline import _create_enricher, get_topic_suggestions, research_topic
 
 RESEARCH_RESULT = {
     "title": "Python",
@@ -44,3 +44,18 @@ def test_research_topic_propagates_scraper_errors():
     with patch("src.pipeline.WikipediaScraper", side_effect=ValueError("no existe")):
         with pytest.raises(ValueError, match="no existe"):
             research_topic("tema inexistente")
+
+
+def test_get_topic_suggestions_returns_suggestions():
+    with patch("src.pipeline.WikipediaScraper") as scraper_cls:
+        scraper_cls.return_value.get_search_suggestions.return_value = ["Python (lenguaje)", "Python (mitología)"]
+        results = get_topic_suggestions("python")
+
+    assert results == ["Python (lenguaje)", "Python (mitología)"]
+
+
+def test_get_topic_suggestions_handles_errors():
+    with patch("src.pipeline.WikipediaScraper", side_effect=ConnectionError("fallo de red")):
+        results = get_topic_suggestions("python")
+
+    assert results == []
