@@ -191,3 +191,33 @@ def test_http_failure_raises_connection_error(mock_get):
 
     with pytest.raises(ConnectionError, match="Error de conexión"):
         WikipediaScraper("Python").extract_content()
+
+
+@pytest.mark.integration
+def test_extract_content_reads_a_live_wikipedia_article():
+    r"""@successful
+
+    Scenario: Read a real Wikipedia article end to end
+        Given the live Wikipedia article "Python (lenguaje de programación)"
+        When I extract the content for that topic
+        Then I get a dictionary with a non empty title
+        And the list of paragraphs contains exactly 5 elements
+    """
+    result = WikipediaScraper("Python (lenguaje de programación)").extract_content()
+
+    assert isinstance(result, dict)
+    assert len(result["title"]) > 0
+    assert len(result["paragraphs"]) == 5
+
+
+@pytest.mark.integration
+def test_extract_content_raises_for_a_live_missing_article():
+    r"""@failure
+
+    Scenario: Report a real article that Wikipedia does not have
+        Given the live Wikipedia has no article for "TemaFalsoQueNoExiste12345ABC"
+        When I extract the content for that topic
+        Then the error says that the article does not exist
+    """
+    with pytest.raises(ValueError, match="no existe"):
+        WikipediaScraper("TemaFalsoQueNoExiste12345ABC").extract_content()

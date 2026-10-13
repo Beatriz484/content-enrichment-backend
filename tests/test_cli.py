@@ -206,6 +206,23 @@ def test_full_flow_exports_the_single_final_result():
     assert call["content_data"]["body"] == "Texto traducido"
 
 
+def test_export_receives_only_the_title_and_the_body():
+    r"""@successful
+
+    Scenario: Hand the exporter nothing but the title and the body
+        Given the user researches "python" and answers every prompt
+        When the pipeline runs
+        Then the export receives exactly the keys "topic" and "body"
+        And no other key is passed to the exporter
+    """
+    inputs = ["python", "2", "s", "fr", "s", "txt", "informe_test"]
+    code, exporter_cls, _, _ = run_cli(inputs)
+
+    assert code == 0
+    call = exporter_cls.return_value.export_content.call_args.kwargs
+    assert set(call["content_data"]) == {"topic", "body"}
+
+
 def test_flow_asks_actions_after_showing_the_search_results(capsys):
     r"""@successful
 
