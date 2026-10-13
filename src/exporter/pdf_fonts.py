@@ -39,7 +39,7 @@ def _find_unicode_font() -> Optional[str]:
             continue
         try:
             pdfmetrics.registerFont(TTFont(FONT_NAME, path))
-        except Exception as error:  # noqa: BLE001 - una fuente corrupta no debe tumbar el informe
+        except Exception as error:
             logger.warning("Fuente descartada '%s': %s", path, error)
             continue
         logger.info("Fuente Unicode registrada para PDF: %s", path)

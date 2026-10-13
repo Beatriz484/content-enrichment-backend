@@ -69,7 +69,7 @@ class AiContentEnricher:
         try:
             response = self.client.chat.completions.create(
                 model=model,
-                messages=messages,  # type: ignore
+                messages=messages,
                 temperature=0.7,
                 max_tokens=2048,
             )
@@ -101,7 +101,7 @@ class AiContentEnricher:
         try:
             response = self.client.chat.completions.create(
                 model=model,
-                messages=messages,  # type: ignore
+                messages=messages,
                 temperature=0.5,
                 max_tokens=1500,
             )
