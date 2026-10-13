@@ -1,7 +1,11 @@
 import pytest
 
-from src.language_validator import ask_language, is_valid_language, validate_language
-from src.translation_errors import InvalidLanguageError
+from src.translation.language_validator import (
+    ask_language,
+    is_valid_language,
+    validate_language,
+)
+from src.translation.translation_errors import InvalidLanguageError
 
 
 def entrada_simulada(respuestas):

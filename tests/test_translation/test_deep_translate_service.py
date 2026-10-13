@@ -4,8 +4,8 @@ import pytest
 import requests
 from deep_translator.exceptions import NotValidLength, TooManyRequests
 
-from src.text_splitter import split_text
-from src.translation_errors import (
+from src.translation.text_splitter import split_text
+from src.translation.translation_errors import (
     EmptyTextError,
     InvalidLanguageError,
     NoConnectionError,
@@ -13,7 +13,7 @@ from src.translation_errors import (
     TextTooLongError,
     TranslationTimeoutError,
 )
-from src.translator import DeepTranslateTranslator
+from src.translation import DeepTranslateTranslator
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ def test_enviar_a_mymemory_el_email_opcional_del_env(monkeypatch):
     monkeypatch.setenv("MYMEMORY_EMAIL", "alumno@ejemplo.com")
     service = DeepTranslateTranslator()
 
-    with patch("src.translator.MyMemoryTranslator") as clase_falsa:
+    with patch("src.translation.translator.MyMemoryTranslator") as clase_falsa:
         clase_falsa.return_value.translate.return_value = "Hello."
         resultado = service.translate("Hola.", "inglés")
 

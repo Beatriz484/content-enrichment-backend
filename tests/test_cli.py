@@ -1,18 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
+from src.cli import _setup_console, main
 from src.errors import ServiceUnavailableError
-from src.main import (
-    _create_enricher,
-    _setup_console,
-    ask_choice,
-    ask_format,
-    ask_text,
-    confirm,
-    main,
-    research_topic,
-)
 
 RESEARCH_RESULT = {
     "title": "Python",
@@ -60,11 +49,11 @@ def run_cli(
         except StopIteration:
             raise EOFError
 
-    with patch("src.main.setup_logging"), \
-            patch("src.main.AiContentEnricher", enricher_factory), \
-            patch("src.main.WikipediaScraper") as scraper_cls, \
-            patch("src.main.DeepTranslateTranslator", return_value=translator), \
-            patch("src.main.DocumentExporter") as exporter_cls, \
+    with patch("src.cli.setup_logging"), \
+            patch("src.pipeline.AiContentEnricher", enricher_factory), \
+            patch("src.pipeline.WikipediaScraper") as scraper_cls, \
+            patch("src.cli.DeepTranslateTranslator", return_value=translator), \
+            patch("src.cli.DocumentExporter") as exporter_cls, \
             patch("builtins.input", side_effect=fake_input):
         scraper_cls.return_value.extract_content.return_value = dict(RESEARCH_RESULT)
         if scraper_error:
@@ -79,78 +68,19 @@ def test_setup_console_is_resilient_to_streams():
     stream = MagicMock()
     stream.reconfigure.side_effect = ValueError("stream cerrado")
 
-    with patch("src.main.sys.stdout", stream), \
-            patch("src.main.sys.stderr", stream), \
-            patch("src.main.sys.stdin", stream):
+    with patch("src.cli.sys.stdout", stream), \
+            patch("src.cli.sys.stderr", stream), \
+            patch("src.cli.sys.stdin", stream):
         _setup_console()
 
     assert stream.reconfigure.called
 
 
 def test_setup_console_forces_utf8():
-    with patch("src.main.sys.stdout") as stdout:
+    with patch("src.cli.sys.stdout") as stdout:
         _setup_console()
 
     stdout.reconfigure.assert_called_with(encoding="utf-8", errors="replace")
-
-
-def test_create_enricher_returns_none_without_credentials(monkeypatch, capsys):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
-    assert _create_enricher() is None
-    assert "IA no disponible" in capsys.readouterr().out
-
-
-def test_create_enricher_with_credentials(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    monkeypatch.setenv("OPENAI_BASE_URL", "https://ejemplo/v1")
-
-    enricher = _create_enricher()
-
-    assert enricher is not None
-    assert enricher.api_key == "sk-test"
-
-
-def test_ask_text_retries_until_non_empty(capsys):
-    with patch("builtins.input", side_effect=["", "  ", "python"]):
-        assert ask_text("Tema: ") == "python"
-
-    assert "no puede estar vacío" in capsys.readouterr().out
-
-
-@pytest.mark.parametrize(
-    ("answer", "expected"),
-    [
-        ("", True),
-        ("si", True),
-        ("no", False),
-        ("N", False),
-    ],
-)
-def test_confirm_answers(answer, expected):
-    with patch("builtins.input", side_effect=[answer]):
-        assert confirm("¿Guardar?", True) is expected
-
-
-def test_confirm_retries_on_invalid_answer(capsys):
-    with patch("builtins.input", side_effect=["tal vez", "sí"]):
-        assert confirm("¿Guardar?", False) is True
-
-    assert "Responde 'sí' o 'no'" in capsys.readouterr().out
-
-
-def test_ask_format_retries_until_valid(capsys):
-    with patch("builtins.input", side_effect=["docx", "TXT"]):
-        assert ask_format() == "txt"
-
-    assert "Formato no válido" in capsys.readouterr().out
-
-
-def test_ask_choice_retries_until_valid_option(capsys):
-    with patch("builtins.input", side_effect=["3", "2"]):
-        assert ask_choice("➤ Elige una opción (1 / 2): ", ("1", "2")) == "2"
-
-    assert "Opción no válida" in capsys.readouterr().out
 
 
 def test_export_saves_one_result_and_never_asks_for_parts(capsys):
@@ -185,24 +115,6 @@ def test_export_result_is_the_last_stage_of_the_chain():
     assert call["content_data"]["body"] == "Texto traducido"
 
 
-def test_research_topic_normalizes_scraper_output():
-    with patch("src.main.WikipediaScraper") as scraper_cls:
-        scraper_cls.return_value.extract_content.return_value = dict(RESEARCH_RESULT)
-        research = research_topic("python")
-
-    assert research == {
-        "title": "Python",
-        "paragraphs": ["Párrafo uno.", "Párrafo dos."],
-        "text": FULL_TEXT,
-    }
-
-
-def test_research_topic_propagates_scraper_errors():
-    with patch("src.main.WikipediaScraper", side_effect=ValueError("no existe")):
-        with pytest.raises(ValueError, match="no existe"):
-            research_topic("tema inexistente")
-
-
 def test_full_flow_exports_the_single_final_result():
     inputs = ["python", "2", "s", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, scraper_cls, _ = run_cli(inputs)
@@ -227,11 +139,11 @@ def test_flow_asks_actions_after_showing_the_search_results(capsys):
     translator = MagicMock()
     translator.translate.return_value = "Texto traducido"
 
-    with patch("src.main.setup_logging"), \
-            patch("src.main.AiContentEnricher", return_value=_enricher_mock()), \
-            patch("src.main.WikipediaScraper") as scraper_cls, \
-            patch("src.main.DeepTranslateTranslator", return_value=translator), \
-            patch("src.main.DocumentExporter") as exporter_cls, \
+    with patch("src.cli.setup_logging"), \
+            patch("src.pipeline.AiContentEnricher", return_value=_enricher_mock()), \
+            patch("src.pipeline.WikipediaScraper") as scraper_cls, \
+            patch("src.cli.DeepTranslateTranslator", return_value=translator), \
+            patch("src.cli.DocumentExporter") as exporter_cls, \
             patch("builtins.input", side_effect=record_input):
 
         def record_wikipedia():
@@ -325,5 +237,5 @@ def test_export_failure_returns_error_code():
 
 
 def test_user_cancellation_returns_130():
-    with patch("src.main.setup_logging"), patch("builtins.input", side_effect=EOFError):
+    with patch("src.cli.setup_logging"), patch("builtins.input", side_effect=EOFError):
         assert main() == 130

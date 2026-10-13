@@ -46,50 +46,45 @@
 
 ```text
 content-enrichment-backend/
-├── docs/                         # Guías de estudio, historias de usuario y diagramas
-│   ├── export_module_study_guide.md
-│   ├── ai_content_enricher_study_guide.md
-│   ├── historias_usuario.md
-│   ├── flowchart.png
-│   └── img.png
-├── src/                          # Código fuente principal
+├── main.py                         # Punto de entrada: se ejecuta con `python main.py`
+├── src/                            # Código fuente principal
 │   ├── __init__.py
-│   ├── main.py                   # CLI: diálogo con el usuario y orquestación del flujo
-│   ├── errors.py                 # Errores controlados del dominio
-│   ├── logging_config.py         # Logging a consola y a logs/app.log
-│   ├── scraper.py                # Extracción desde Wikipedia (con búsqueda de respaldo)
-│   ├── enricher.py               # Enriquecimiento y resúmenes con IA
-│   ├── translator.py             # Traducción con deep-translator / MyMemory (HU-05)
-│   ├── language_validator.py     # Validación del idioma que escribe el usuario
-│   ├── text_splitter.py          # Troceado de textos largos para MyMemory
-│   ├── translation_errors.py     # Errores controlados del servicio de traducción
-│   └── exporter/                 # Paquete de exportación (TXT / PDF)
-│       ├── document_exporter.py  # Orquestador de la exportación
-│       ├── validators.py         # Validación de entradas y saneo de nombres
-│       ├── pdf_fonts.py          # Fuente Unicode y preparación de texto del PDF
-│       ├── txt_exporter.py       # Generación de TXT (UTF-8 con BOM)
-│       └── pdf_exporter.py       # Generación de PDF (ReportLab)
-├── tests/                        # Suite de pruebas automáticas
-│   ├── features/                 # Escenarios Gherkin
+│   ├── cli.py                      # Orquestación del flujo (main, pasos 1/5 a 5/5)
+│   ├── prompts.py                  # Diálogo con el usuario (entrada y muestra por consola)
+│   ├── pipeline.py                 # Etapas del proceso: Wikipedia, IA y traducción
+│   ├── errors.py                   # Errores controlados del dominio
+│   ├── logging_config.py           # Logging a consola y a logs/app.log
+│   ├── scraper.py                  # Extracción desde Wikipedia (con búsqueda de respaldo)
+│   ├── enricher.py                 # Enriquecimiento y resúmenes con IA
+│   ├── translation/                # Paquete de traducción (HU-05)
+│   │   ├── __init__.py
+│   │   ├── translator.py           # Traducción con deep-translator / MyMemory
+│   │   ├── language_validator.py   # Validación del idioma que escribe el usuario
+│   │   ├── text_splitter.py        # Troceado de textos largos para MyMemory
+│   │   └── translation_errors.py   # Errores controlados del servicio de traducción
+│   └── exporter/                   # Paquete de exportación (TXT / PDF)
+│       ├── document_exporter.py    # Orquestador de la exportación
+│       ├── validators.py           # Validación de entradas y saneo de nombres
+│       ├── pdf_fonts.py            # Fuente Unicode y preparación de texto del PDF
+│       ├── txt_exporter.py         # Generación de TXT (UTF-8 con BOM)
+│       └── pdf_exporter.py         # Generación de PDF (ReportLab)
+├── tests/                          # Suite de pruebas automáticas
+│   ├── features/                   # Escenarios Gherkin
 │   │   ├── scraper.feature
 │   │   └── export.feature
 │   ├── test_exporter/
+│   ├── test_translation/
 │   ├── test_export_bdd.py
-│   ├── test_main.py              # Flujo completo de la CLI (sin red ni IA real)
+│   ├── test_cli.py                 # Flujo completo de la CLI (sin red ni IA real)
+│   ├── test_prompts.py             # Diálogo con el usuario
+│   ├── test_pipeline.py            # Etapas del proceso
 │   ├── test_scraper.py
 │   ├── test_enricher.py
-│   ├── test_translator.py
 │   └── ...
 ├── .pre-commit-config.yaml
-├── requirements.txt              # Dependencias de ejecución y desarrollo
+├── requirements.txt                # Dependencias de ejecución y desarrollo
 └── README.md
 ```
-
-## 📚 Documentación del Proyecto
-
-- 📤 [Guía del Módulo de Exportación (TXT / PDF)](docs/export_module_study_guide.md)
-- 🤖 [Guía del Módulo AiContentEnricher](docs/ai_content_enricher_study_guide.md)
-- 🗂️ [Product Backlog e Historias de Usuario](docs/historias_usuario.md)
 
 ## ⚙️ Instalación y Configuración Local
 
@@ -121,7 +116,7 @@ pip install -r requirements.txt
 
 **4. Configurar variables de entorno**
 
-Crea un archivo `.env` en la raíz del proyecto a partir de `.env.example`:
+Crea un archivo `.env` en la raíz del proyecto con estas variables:
 
 ```bash
 OPENAI_API_KEY=tu_clave_de_openai_aqui
@@ -140,7 +135,7 @@ AI_MODEL=qwen/qwen3.8-27b
 
 ## 🎛️ Flujo de la aplicación
 
-Al arrancar (`python -m src.main`) la CLI pide **solo el tema** y arranca el
+Al arrancar (`python main.py`) la CLI pide **solo el tema** y arranca el
 proceso. Las decisiones restantes se preguntan **en el momento en que les toca**,
 siempre después de mostrar los resultados de la búsqueda:
 
@@ -236,7 +231,7 @@ exige el documento de requisitos:
 ## 🚀 Uso de la Aplicación
 
 ```bash
-python -m src.main
+python main.py
 ```
 
 ```text
@@ -258,12 +253,12 @@ python -m src.main
 Cada ejecución registra el proceso completo en `logs/app.log`:
 
 ```text
-[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: tema='camas'.
-[2026-10-06 13:09:48] [INFO] src.main: Wikipedia: extraídos 5 párrafos de 'Camas'.
-[2026-10-06 13:09:48] [INFO] src.main: IA: contenido enriquecido generado.
-[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: resumen=False.
-[2026-10-06 13:09:48] [INFO] src.main: Opción capturada: idioma=original.
-[2026-10-06 13:09:48] [INFO] src.main: Informe exportado a 'output\informe.txt'.
+[2026-10-06 13:09:48] [INFO] src.cli: Opción capturada: tema='camas'.
+[2026-10-06 13:09:48] [INFO] src.pipeline: Wikipedia: extraídos 5 párrafos de 'Camas'.
+[2026-10-06 13:09:48] [INFO] src.pipeline: IA: contenido enriquecido generado.
+[2026-10-06 13:09:48] [INFO] src.cli: Opción capturada: resumen=False.
+[2026-10-06 13:09:48] [INFO] src.cli: Opción capturada: idioma=original.
+[2026-10-06 13:09:48] [INFO] src.cli: Informe exportado a 'output\informe.txt'.
 ```
 
 La configuración vive en `src/logging_config.py` (`setup_logging()`).
@@ -272,10 +267,10 @@ La configuración vive en `src/logging_config.py` (`setup_logging()`).
 
 ## 🔌 Módulo de traducción (HU-05)
 
-`src/translator.py` entrega la clase que la CLI invoca:
+`src/translation/translator.py` entrega la clase que la CLI invoca:
 
 ```python
-from src.translator import DeepTranslateTranslator
+from src.translation import DeepTranslateTranslator
 
 service = DeepTranslateTranslator()          # origen "es-ES" (es.wikipedia.org)
 texto_traducido = service.translate(texto, "en")   # "en", "inglés", "en-GB"...
@@ -306,9 +301,9 @@ Para subir la cuota a **50.000 caracteres al día**, añade tu correo en el
 MYMEMORY_EMAIL=tu_correo@example.com
 ```
 
-> La cuota se reinicia al día siguiente. `.env.example` ya incluye la variable
-> y la lectura es opcional: si está vacía, la traducción funciona igual pero
-> con menos margen.
+> La cuota se reinicia al día siguiente. La lectura de la variable es
+> opcional: si está vacía, la traducción funciona igual pero con menos
+> margen.
 
 ---
 

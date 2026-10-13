@@ -1,4 +1,4 @@
-from src.text_splitter import split_text
+from src.translation.text_splitter import split_text
 
 FRASE = "La investigación científica avanza rápidamente cada año."
 

@@ -1,4 +1,4 @@
-from .errors import ServiceUnavailableError
+from ..errors import ServiceUnavailableError
 
 class TranslationServiceError(ServiceUnavailableError):
     pass

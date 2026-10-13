@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from src.errors import ServiceUnavailableError, ServicioNoDisponibleError
-from src.translator import DeepTranslateTranslator
+from src.translation import DeepTranslateTranslator
 
 
 def test_translator_exposes_the_agreed_contract():
