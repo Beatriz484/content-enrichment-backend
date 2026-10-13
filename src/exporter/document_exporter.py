@@ -20,12 +20,10 @@ class DocumentExporter:
             output_format: str,
             content_data: Dict[str, Any]
     ) -> Tuple[bool, str]:
-        # 1. Capa de Validación
         is_valid, error_msg = ExportValidator.validate_inputs(file_name, output_format, content_data)
         if not is_valid:
             return False, error_msg
 
-        # 2. Preparación de Nombre y Ruta
         clean_format = output_format.strip().lower()
         safe_name = ExportValidator.sanitize_filename(file_name)
 
@@ -36,8 +34,6 @@ class DocumentExporter:
 
         file_path = os.path.join(self.output_dir, full_name)
 
-        # 3. Capa de Proceso / Generación
-        # La validación anterior garantiza que el formato es 'txt' o 'pdf'.
         try:
             if clean_format == "txt":
                 saved_path = TxtExporter.generate(file_path, content_data)

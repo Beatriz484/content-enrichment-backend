@@ -5,7 +5,6 @@ from openai import OpenAI
 
 load_dotenv()
 
-# Logger setup matching system flow specifications
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
@@ -22,10 +21,8 @@ SUMMARY_SYSTEM_PROMPT = (
 )
 
 class AiContentEnricher:
-    """Service responsible for enriching and summarizing text using AI completions."""
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:
-        """Initialize the OpenAI-compatible client validating credentials."""
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
 
@@ -40,19 +37,16 @@ class AiContentEnricher:
         )
 
     def _is_valid_text(self, text: str | None) -> bool:
-        """Check whether input text contains non-empty string content."""
         if not text or not isinstance(text, str):
             return False
         return bool(text.strip())
 
     def _adjust_length(self, text: str, max_characters: int = 10000) -> str:
-        """Truncate text safely if it exceeds max allowed character length."""
         if len(text) > max_characters:
             return text[:max_characters].strip()
         return text
 
     def enrich_content(self, text: str, model: str = "openai/gpt-oss-120b") -> str:
-        """Enrich given content using AI models."""
         if not self._is_valid_text(text):
             logger.warning("Memoria vacía")
             return text
@@ -76,7 +70,7 @@ class AiContentEnricher:
                 model=model,
                 messages=messages,  # type: ignore
                 temperature=0.7,
-                max_tokens=2048,  # Ajustado a 2048 para evitar el error 429 (TPM limit de Groq)
+                max_tokens=2048,
             )
             enriched_content = response.choices[0].message.content
             if enriched_content:
@@ -90,7 +84,6 @@ class AiContentEnricher:
             return text
 
     def summarize_content(self, text: str, model: str = "openai/gpt-oss-120b") -> str:
-        """Generate structured educational summary from input text."""
         if not self._is_valid_text(text):
             logger.warning("Memoria vacía")
             return text
