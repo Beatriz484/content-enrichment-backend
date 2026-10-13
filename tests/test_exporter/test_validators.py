@@ -1,10 +1,3 @@
-r"""Feature: Validation of the data handed to the exporter
-
-  As a Content Enricher user
-  I want an export rejected with a clear message when something is missing or not allowed
-  So that no half-written file is ever left on disk
-"""
-
 from src.exporter.validators import ExportValidator
 
 REPORT = {"topic": "IA", "body": "Contenido final."}

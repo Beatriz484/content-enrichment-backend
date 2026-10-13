@@ -1,10 +1,3 @@
-r"""Feature: Contract of the translation service
-
-  As a developer of the Content Enricher
-  I want the translator to honour the contract the CLI depends on
-  So that the last step of the pipeline never changes shape
-"""
-
 from unittest.mock import patch
 
 from src.errors import ServiceUnavailableError, ServicioNoDisponibleError

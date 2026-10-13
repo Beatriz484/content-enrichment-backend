@@ -1,10 +1,3 @@
-r"""Feature: Enrichment and summarisation of the content with AI
-
-  As a Content Enricher user
-  I want the researched content enriched and optionally summarised
-  So that the report reads like a study document instead of raw extracts
-"""
-
 from unittest.mock import MagicMock, patch
 
 import pytest

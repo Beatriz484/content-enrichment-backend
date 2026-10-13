@@ -1,10 +1,3 @@
-r"""Feature: Validation of the target language typed by the user
-
-  As a Content Enricher user
-  I want my language rejected with a clear message when it is wrong
-  So that the pipeline never asks MyMemory for a language it does not understand
-"""
-
 import pytest
 
 from src.translation.language_validator import (

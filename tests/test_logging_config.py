@@ -1,9 +1,4 @@
-r"""Feature: Logging of every run to the console and to a file
 
-  As a Content Enricher user
-  I want the whole process written to a log file
-  So that I can review what happened after the run
-"""
 
 import logging
 

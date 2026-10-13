@@ -8,6 +8,7 @@ from .logging_config import setup_logging
 from .pipeline import (
     _create_enricher,
     enrich_content,
+    get_topic_suggestions,
     research_topic,
     summarize_content,
     translate_content,
@@ -62,12 +63,43 @@ def _run() -> int:
 
     topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
 
-    print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
-    try:
-        research = research_topic(topic)
-    except (ValueError, ConnectionError) as error:
-        print(f"🔴 No se pudo investigar el tema: {error}")
-        return 1
+    while True:
+        print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
+        try:
+            research = research_topic(topic)
+
+            # Si se extrajo el artículo pero está vacío (página de desambiguación)
+            if not research["text"].strip():
+                print(f"⚠️  '{topic}' es una página de desambiguación o no contiene texto.")
+
+                # Obtenemos opciones alternativas de la API de Wikipedia
+                opciones = get_topic_suggestions(topic, limit=5)
+
+                if opciones:
+                    print("Elige una de las opciones disponibles:")
+                    for i, op in enumerate(opciones, 1):
+                        print(f"  {i}. {op}")
+                    print("  0. Escribir otro tema manualmente")
+
+                    val_opciones = tuple(str(i) for i in range(len(opciones) + 1))
+                    eleccion = ask_choice(f"\n➤ Elige una opción (0-{len(opciones)}): ", val_opciones)
+
+                    if eleccion == "0":
+                        topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
+                        continue
+                    else:
+                        topic = opciones[int(eleccion) - 1]
+                        continue
+                else:
+                    topic = ask_text("\n➤ No hay alternativas. Escribe otro tema: ")
+                    continue
+
+            break
+        except (ValueError, ConnectionError) as error:
+            print(f"🔴 No se pudo investigar el tema: {error}")
+            topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
+            continue
+
     show_investigation(research)
     logger.info("Opción capturada: tema='%s'.", topic)
 

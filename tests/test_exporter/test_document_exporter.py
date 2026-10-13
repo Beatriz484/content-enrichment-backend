@@ -1,10 +1,3 @@
-r"""Feature: Orchestration of the document export
-
-  As a Content Enricher user
-  I want every export problem reported as a message instead of a crash
-  So that I always end up with a file or a clear reason why there is none
-"""
-
 import os
 
 from src.exporter.document_exporter import DocumentExporter

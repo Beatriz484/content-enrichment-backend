@@ -1,10 +1,3 @@
-r"""Feature: Dialogue between the CLI and the user
-
-  As a Content Enricher user
-  I want every question repeated until I give an answer the system understands
-  So that a typo never ends the run
-"""
-
 from unittest.mock import patch
 
 import pytest

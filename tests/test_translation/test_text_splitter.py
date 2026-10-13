@@ -1,10 +1,3 @@
-r"""Feature: Splitting of long texts before they are sent to MyMemory
-
-  As a Content Enricher user
-  I want a long article split into chunks the service will accept
-  So that the translation is never rejected for being too long
-"""
-
 from src.translation.text_splitter import split_text
 
 SENTENCE = "La investigación científica avanza rápidamente cada año."

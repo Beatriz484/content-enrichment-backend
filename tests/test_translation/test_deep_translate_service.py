@@ -1,12 +1,3 @@
-r"""Feature: Translation of the content with DeepTranslateTranslator
-
-  As a Content Enricher user
-  I want to choose a target language and read the researched content in it
-  So that the last step of the pipeline speaks the language I asked for
-
-  The MyMemory API is always mocked, so these tests never spend quota.
-"""
-
 from unittest.mock import patch
 
 import pytest

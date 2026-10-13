@@ -20,6 +20,7 @@ SUMMARY_SYSTEM_PROMPT = (
     "Sé conciso y no inventes información."
 )
 
+
 class AiContentEnricher:
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None) -> None:

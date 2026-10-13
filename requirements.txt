@@ -1,4 +1,3 @@
-
 # Runtime
 beautifulsoup4==4.14.3
 deep-translator==1.11.4

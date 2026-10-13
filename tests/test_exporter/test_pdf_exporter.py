@@ -1,10 +1,3 @@
-r"""Feature: PDF export of the requested variant
-
-  As a Content Enricher user
-  I want the PDF to hold exactly the variant I asked for, readable on any machine
-  So that I can open the report without losing characters or reading extra sections
-"""
-
 import os
 
 from src.exporter.pdf_exporter import PdfExporter

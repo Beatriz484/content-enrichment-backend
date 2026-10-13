@@ -1,10 +1,3 @@
-r"""Feature: Extraction of articles from Wikipedia
-
-  As a developer of the Content Enricher system
-  I want the title and the first five paragraphs extracted from Wikipedia
-  So that the base information of every article is correct
-"""
-
 from unittest.mock import MagicMock, patch
 
 import pytest

@@ -1,10 +1,3 @@
-r"""Feature: TXT export of the requested variant
-
-  As a Content Enricher user
-  I want the TXT file to contain exactly the variant I asked for
-  So that I never receive text or notes that I did not request
-"""
-
 import os
 
 from src.exporter.txt_exporter import TxtExporter

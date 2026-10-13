@@ -1,10 +1,3 @@
-r"""Feature: Unicode font handling for the PDF
-
-  As a Content Enricher user
-  I want the report rendered with a font that covers the characters of the text
-  So that accents, symbols and exotic characters are never silently dropped
-"""
-
 import pytest
 
 from src.exporter import pdf_fonts
