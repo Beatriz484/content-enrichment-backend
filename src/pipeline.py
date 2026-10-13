@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional
 
 from .enricher import AiContentEnricher
 from .scraper import WikipediaScraper
-from .translator import DeepTranslateTranslator
+from .translation import DeepTranslateTranslator
 
 logger = logging.getLogger(__name__)
 

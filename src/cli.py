@@ -24,7 +24,7 @@ from .prompts import (
     show_investigation,
     show_section,
 )
-from .translator import DeepTranslateTranslator
+from .translation import DeepTranslateTranslator
 
 logger = logging.getLogger(__name__)
 
