@@ -220,15 +220,48 @@ def _run() -> int:
     topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
 
     # 2. Scraping ------------------------------------------------------------
-    print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
-    try:
-        research = research_topic(topic)
-    except (ValueError, ConnectionError) as error:
-        print(f"🔴 No se pudo investigar el tema: {error}")
-        return 1
+    while True:
+        print(f"\n[1/5] Buscando en Wikipedia: {topic}...")
+        scraper = WikipediaScraper(topic)
+
+        try:
+            research = research_topic(topic)
+
+            # Si se extrajo el artículo pero está vacío (página de desambiguación)
+            if not research["text"].strip():
+                print(f"⚠️  '{topic}' es una página de desambiguación o no contiene texto.")
+
+                # Obtenemos opciones alternativas de la API de Wikipedia
+                opciones = scraper.get_search_suggestions(
+                    limit=5)  # O el método que tengáis para buscar varios resultados
+
+                if opciones:
+                    print("Elige una de las opciones disponibles:")
+                    for i, op in enumerate(opciones, 1):
+                        print(f"  {i}. {op}")
+                    print(f"  0. Escribir otro tema manualmente")
+
+                    val_opciones = tuple(str(i) for i in range(len(opciones) + 1))
+                    eleccion = ask_choice(f"\n➤ Elige una opción (0-{len(opciones)}): ", val_opciones)
+
+                    if eleccion == "0":
+                        topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
+                        continue
+                    else:
+                        topic = opciones[int(eleccion) - 1]
+                        continue
+                else:
+                    topic = ask_text("\n➤ No hay alternativas. Escribe otro tema: ")
+                    continue
+
+            break
+        except (ValueError, ConnectionError) as error:
+            print(f"🔴 No se pudo investigar el tema: {error}")
+            topic = ask_text("\n➤ Tema a investigar en Wikipedia: ")
+            continue
+
     show_investigation(research)
     logger.info("Opción capturada: tema='%s'.", topic)
-
     # 3. Enriquecimiento IA --------------------------------------------------
     # Los resultados de Wikipedia ya están en pantalla: ahora sí se piden
     # las acciones adicionales (primero el resumen, luego el idioma).
