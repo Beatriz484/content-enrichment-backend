@@ -68,3 +68,19 @@ def test_txt_conserva_los_saltos_de_linea_del_body(tmp_path):
 
     texto = _leer(result_path)
     assert "Párrafo uno.\n\nPárrafo dos." in texto
+
+def test_txt_se_escribe_en_texto_plano_sin_simbolos_de_markdown(tmp_path):
+    """Si el body llega en Markdown (lo habitual con la IA), el TXT sale limpio."""
+    output_file = tmp_path / "plano.txt"
+    contenido = {
+        "topic": "Granada",
+        "body": "## Geografía\n\nLa **Vega de Granada** es fértil.",
+    }
+
+    result_path = TxtExporter.generate(str(output_file), contenido)
+
+    texto = _leer(result_path)
+    assert "Geografía" in texto
+    assert "La Vega de Granada es fértil." in texto
+    assert "#" not in texto
+    assert "**" not in texto
