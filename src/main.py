@@ -259,12 +259,25 @@ def _run() -> int:
 
     summary = ""
     if want_summary:
-        print("[3/5] Generando el resumen con IA...")
-        # El resumen se calcula sobre el contenido enriquecido, si existe.
-        summary = summarize_content(enricher, enriched or research["text"])
-        show_section("RESUMEN (IA)", summary)
+        content_to_summarize = enriched or research["text"]
+        while True:
+            print("[3/5] Generando el resumen con IA...")
+            candidate_summary = summarize_content(enricher, content_to_summarize)
+
+            # Si la IA devolvió el texto original por error de conexión o vino vacío
+            if not candidate_summary or candidate_summary == content_to_summarize:
+                print("⚠️ No se pudo generar el resumen por un fallo en la conexión con la IA.")
+                if confirm("➤ ¿Deseas reintentar la generación del resumen?", False):
+                    continue
+                print("[3/5] Se continuará sin resumen.")
+                break
+
+            summary = candidate_summary
+            show_section("RESUMEN (IA)", summary)
+            break
     else:
         print("[3/5] Resumen omitido (no se solicitó).")
+
 
     # 5. Traducción: la última petición del usuario y el último proceso ------
     language = ask_language()
