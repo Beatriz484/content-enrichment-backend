@@ -14,6 +14,12 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
+SUMMARY_SYSTEM_PROMPT = (
+    "Eres un asistente experto en síntesis de contenido. "
+    "Tu objetivo es crear un resumen claro, informativo y profesional a partir del texto proporcionado. "
+    "Estructura la respuesta con un párrafo introductorio conciso seguido de viñetas con los puntos clave principales. "
+    "Sé conciso y no inventes información."
+)
 
 class AiContentEnricher:
     """Service responsible for enriching and summarizing text using AI completions."""
@@ -91,11 +97,7 @@ class AiContentEnricher:
 
         prepared_text = self._adjust_length(text)
 
-        system_prompt = (
-            "Eres un asistente educativo especializado en síntesis de información. "
-            "Tu tarea es generar un resumen conciso y estructurado del contenido proporcionado, "
-            "destacando los puntos principales, definiciones clave y conclusiones esenciales."
-        )
+        system_prompt = SUMMARY_SYSTEM_PROMPT
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -119,3 +121,5 @@ class AiContentEnricher:
         except Exception as e:
             logger.warning(f"IA no disponible: {e}")
             return text
+
+    summarize = summarize_content
