@@ -112,3 +112,12 @@ def test_summarize_content_empty_text_skips_api(enricher_instance):
         assert enricher_instance.summarize_content("") == ""
 
     mock_create.assert_not_called()
+
+def test_summarize_alias_calls_summarize_content(enricher_instance):
+    """El alias summarize() invoca correctamente la lógica de resumen."""
+    with patch.object(
+        enricher_instance.client.chat.completions,
+        "create",
+        return_value=_mock_response("Resumen mediante alias"),
+    ):
+        assert enricher_instance.summarize("Texto de prueba") == "Resumen mediante alias"

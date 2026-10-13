@@ -57,3 +57,4 @@ def show_investigation(research: Dict[str, Any]) -> None:
 def show_section(label: str, content: str) -> None:
     print(f"=== {label} ===")
     print(f"{content}\n")
+
