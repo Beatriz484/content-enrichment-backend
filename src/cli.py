@@ -1,5 +1,3 @@
-"""Punto de entrada de la CLI: configura, orquesta los pasos y exporta el informe."""
-
 import logging
 import sys
 from typing import Any, Dict
