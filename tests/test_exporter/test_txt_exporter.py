@@ -94,3 +94,22 @@ def test_txt_preserves_the_body_line_breaks(tmp_path):
 
     text = _read_file(result_path)
     assert "Párrafo uno.\n\nPárrafo dos." in text
+
+
+def test_txt_is_written_as_plain_text_without_markdown_symbols(tmp_path):
+    r"""@successful
+
+    Scenario: Write the TXT as plain text when the body comes in Markdown
+        Given a report with title "Granada" and body "## Geografía\n\nLa **Vega de Granada** es fértil."
+        When I export the report in "txt" format
+        Then the file contains "Geografía" and "La Vega de Granada es fértil."
+        And the file contains no Markdown symbols
+    """
+    output_file = tmp_path / "plano.txt"
+    content = {"topic": "Granada", "body": "## Geografía\n\nLa **Vega de Granada** es fértil."}
+    result_path = TxtExporter.generate(str(output_file), content)
+    text = _read_file(result_path)
+    assert "Geografía" in text
+    assert "La Vega de Granada es fértil." in text
+    assert "#" not in text
+    assert "**" not in text
