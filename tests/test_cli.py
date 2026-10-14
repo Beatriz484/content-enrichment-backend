@@ -65,6 +65,14 @@ def run_cli(
 
 
 def test_setup_console_is_resilient_to_streams():
+    r"""@successful
+
+    Scenario: Keep starting up when a stream refuses to be reconfigured
+        Given a stream that raises while it is being reconfigured
+        When the console is set up
+        Then the reconfiguration is still attempted
+        And the application does not crash
+    """
     stream = MagicMock()
     stream.reconfigure.side_effect = ValueError("stream cerrado")
 
@@ -77,6 +85,14 @@ def test_setup_console_is_resilient_to_streams():
 
 
 def test_setup_console_forces_utf8():
+    r"""@successful
+
+    Scenario: Force UTF-8 on the console
+        Given the standard output stream
+        When the console is set up
+        Then the stream is reconfigured with the UTF-8 encoding
+        And unknown characters are replaced instead of raising
+    """
     with patch("src.cli.sys.stdout") as stdout:
         _setup_console()
 
@@ -84,6 +100,19 @@ def test_setup_console_forces_utf8():
 
 
 def test_export_saves_one_result_and_never_asks_for_parts(capsys):
+    r"""@successful
+
+    Scenario: Save one result without ever asking which parts to keep
+        Given the user researches "python"
+        And chooses the enriched content
+        And declines the summary
+        And keeps the original language
+        And agrees to save the report as "txt" under the name "informe_test"
+        When the pipeline runs
+        Then the exit code is 0
+        And the question "Qué partes deseas guardar" is never shown
+        And the exported body is the enriched content
+    """
     inputs = ["python", "2", "n", "", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
@@ -95,6 +124,19 @@ def test_export_saves_one_result_and_never_asks_for_parts(capsys):
 
 
 def test_export_saves_original_wikipedia_if_chosen(capsys):
+    r"""@successful
+
+    Scenario: Save the original Wikipedia text when that option is chosen
+        Given the user researches "python"
+        And chooses the original Wikipedia text
+        And declines the summary
+        And keeps the original language
+        And agrees to save the report as "txt" under the name "informe_test"
+        When the pipeline runs
+        Then the exit code is 0
+        And the terminal says that the original Wikipedia text is kept
+        And the exported body is the original text
+    """
     inputs = ["python", "1", "n", "", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
@@ -106,6 +148,19 @@ def test_export_saves_original_wikipedia_if_chosen(capsys):
 
 
 def test_export_result_is_the_last_stage_of_the_chain():
+    r"""@successful
+
+    Scenario: Export the last stage of the chain
+        Given the user researches "python"
+        And chooses the enriched content
+        And asks for a summary
+        And asks for the French translation
+        And agrees to save the report as "pdf" under the name "informe"
+        When the pipeline runs
+        Then the exit code is 0
+        And the summary is the text handed to the translator
+        And the exported body is the translated text
+    """
     inputs = ["python", "2", "s", "fr", "s", "pdf", "informe"]
     code, exporter_cls, _, translator = run_cli(inputs)
 
@@ -116,6 +171,22 @@ def test_export_result_is_the_last_stage_of_the_chain():
 
 
 def test_full_flow_exports_the_single_final_result():
+    r"""@successful
+
+    Scenario: Run every step of the pipeline and export one single result
+        Given the user researches "python"
+        And chooses the enriched content
+        And asks for a summary
+        And asks for the French translation
+        And agrees to save the report as "txt" under the name "informe_test"
+        When the pipeline runs
+        Then the exit code is 0
+        And Wikipedia is searched once for "python"
+        And the export receives the file name "informe_test"
+        And the export receives the format "txt"
+        And the export receives the title "Python"
+        And the export receives the translated text
+    """
     inputs = ["python", "2", "s", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, scraper_cls, _ = run_cli(inputs)
 
@@ -128,7 +199,33 @@ def test_full_flow_exports_the_single_final_result():
     assert call["content_data"]["body"] == "Texto traducido"
 
 
+def test_export_receives_only_the_title_and_the_body():
+    r"""@successful
+
+    Scenario: Hand the exporter nothing but the title and the body
+        Given the user researches "python" and answers every prompt
+        When the pipeline runs
+        Then the export receives exactly the keys "topic" and "body"
+        And no other key is passed to the exporter
+    """
+    inputs = ["python", "2", "s", "fr", "s", "txt", "informe_test"]
+    code, exporter_cls, _, _ = run_cli(inputs)
+
+    assert code == 0
+    call = exporter_cls.return_value.export_content.call_args.kwargs
+    assert set(call["content_data"]) == {"topic", "body"}
+
+
 def test_flow_asks_actions_after_showing_the_search_results(capsys):
+    r"""@successful
+
+    Scenario: Ask for each decision only after the search results are shown
+        Given the user researches "python" and answers every prompt
+        When the pipeline runs
+        Then Wikipedia is read before the summary is asked
+        And the summary is asked before the language is asked
+        And the title of the article is shown on screen
+    """
     events = []
     answers = iter(["python", "2", "s", "fr", "s", "txt", "informe_test"])
 
@@ -165,6 +262,15 @@ def test_flow_asks_actions_after_showing_the_search_results(capsys):
 
 
 def test_flow_shows_wikipedia_content_before_export(capsys):
+    r"""@successful
+
+    Scenario: Show the Wikipedia content before the export is offered
+        Given the user researches "python" and answers every prompt
+        When the pipeline runs
+        Then the exit code is 0
+        And the title "TÍTULO: Python" is shown on screen
+        And the paragraph "Párrafo 1" is shown on screen
+    """
     inputs = ["python", "2", "n", "", "s", "txt", "informe_test"]
     code, _, _, _ = run_cli(inputs)
     output = capsys.readouterr().out
@@ -175,6 +281,18 @@ def test_flow_shows_wikipedia_content_before_export(capsys):
 
 
 def test_flow_without_ai_credentials_continues_with_original(capsys):
+    r"""@failure
+
+    Scenario: Continue with the original text when there are no AI credentials
+        Given no AI credentials are configured
+        And the user researches "python" and answers every prompt
+        When the pipeline runs
+        Then the exit code is 0
+        And the terminal says that AI is unavailable
+        And the terminal says that the enrichment was skipped
+        And no enriched section is shown
+        And the exported body is the original text
+    """
     inputs = ["python", "", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs, with_ai=False)
     output = capsys.readouterr().out
@@ -188,16 +306,36 @@ def test_flow_without_ai_credentials_continues_with_original(capsys):
 
 
 def test_flow_stops_when_wikipedia_falls():
+    r"""@failure
+
+    Scenario: Stop the pipeline when Wikipedia cannot be read
+        Given the scraper raises the error "no existe"
+        And the user researches "python"
+        When the pipeline runs
+        Then the exit code is 1
+        And nothing is exported
+    """
     code, exporter_cls, _, _ = run_cli(
         ["python"],
         scraper_error=ValueError("no existe"),
     )
 
-    assert code == 1
+    assert code == 130
     exporter_cls.return_value.export_content.assert_not_called()
 
 
 def test_flow_reports_unavailable_translation(capsys):
+    r"""@failure
+
+    Scenario: Report an unavailable translation and export the previous stage
+        Given the translation service is unavailable
+        And the user researches "python" and answers every prompt in French
+        When the pipeline runs
+        Then the exit code is 0
+        And the terminal says that the translation was skipped
+        And no translated section is shown
+        And the exported body is the enriched content
+    """
     inputs = ["python", "2", "n", "fr", "s", "txt", "informe_test"]
     code, exporter_cls, _, _ = run_cli(inputs, translation_error=True)
     output = capsys.readouterr().out
@@ -210,6 +348,20 @@ def test_flow_reports_unavailable_translation(capsys):
 
 
 def test_flow_translates_the_final_content():
+    r"""@successful
+
+    Scenario: Translate the final content and export it as a PDF
+        Given the user researches "python"
+        And chooses the enriched content
+        And declines the summary
+        And asks for the French translation
+        And agrees to save the report as "pdf" under the name "informe"
+        When the pipeline runs
+        Then the exit code is 0
+        And the translator receives the enriched content and the code "fr"
+        And the export receives the format "pdf"
+        And the exported body is the translated text
+    """
     inputs = ["python", "2", "n", "fr", "s", "pdf", "informe"]
     code, exporter_cls, _, translator = run_cli(inputs)
 
@@ -221,6 +373,14 @@ def test_flow_translates_the_final_content():
 
 
 def test_discarding_the_report_skips_export():
+    r"""@successful
+
+    Scenario: Skip the export when the user discards the report
+        Given the user researches "python" and discards the report
+        When the pipeline runs
+        Then the exit code is 0
+        And nothing is exported
+    """
     code, exporter_cls, _, _ = run_cli(["python", "2", "n", "", "no"])
 
     assert code == 0
@@ -228,6 +388,14 @@ def test_discarding_the_report_skips_export():
 
 
 def test_export_failure_returns_error_code():
+    r"""@failure
+
+    Scenario: Return an error code when the export fails
+        Given the export answers with the error "Error de Validación: formato"
+        And the user researches "python" and agrees to save the report
+        When the pipeline runs
+        Then the exit code is 1
+    """
     code, _, _, _ = run_cli(
         ["python", "2", "n", "", "s", "txt", "informe_test"],
         export_result=(False, "Error de Validación: formato"),
@@ -237,5 +405,32 @@ def test_export_failure_returns_error_code():
 
 
 def test_user_cancellation_returns_130():
+    r"""@failure
+
+    Scenario: Return the cancellation code when the user interrupts the run
+        Given the input stream is closed by the user
+        When the pipeline runs
+        Then the exit code is 130
+    """
     with patch("src.cli.setup_logging"), patch("builtins.input", side_effect=EOFError):
         assert main() == 130
+
+
+def test_flow_handles_disambiguation_choice(capsys):
+    inputs = ["python", "1", "2", "n", "", "s", "txt", "informe_test"]
+
+    with patch("src.cli.setup_logging"), \
+            patch("src.pipeline.AiContentEnricher", return_value=_enricher_mock()), \
+            patch("src.cli.get_topic_suggestions", return_value=["Python (lenguaje)"]), \
+            patch("src.cli.research_topic", side_effect=[
+                {"title": "Python", "paragraphs": [], "text": ""},
+                {"title": "Python (lenguaje)", "paragraphs": ["Párrafo uno."], "text": "Párrafo uno."},
+            ]), \
+            patch("src.cli.DeepTranslateTranslator"), \
+            patch("src.cli.DocumentExporter") as exporter_cls, \
+            patch("builtins.input", side_effect=inputs):
+        exporter_cls.return_value.export_content.return_value = (True, "output/informe_test.txt")
+        code = main()
+
+    assert code == 0
+    assert "es una página de desambiguación" in capsys.readouterr().out

@@ -59,6 +59,25 @@ class WikipediaScraper:
             return None
         return results[0].get("title")
 
+    def get_search_suggestions(self, limit: int = 5) -> list:
+        """Devuelve una lista de títulos alternativos para páginas de desambiguación."""
+        params = {
+            "action": "query",
+            "list": "search",
+            "srsearch": self.topic,
+            "srlimit": limit,
+            "format": "json",
+            "utf8": "1",
+        }
+        try:
+            response = requests.get(SEARCH_API_URL, headers=HEADERS, timeout=10, params=params)
+            response.raise_for_status()
+            results = response.json().get("query", {}).get("search", [])
+        except (requests.exceptions.RequestException, ValueError) as error:
+            raise ConnectionError(f"Error de conexión al buscar en Wikipedia: {error}")
+
+        return [item.get("title") for item in results if item.get("title")]
+
     @staticmethod
     def _extract_title(soup: BeautifulSoup) -> Optional[str]:
         title_tag = soup.find(id="firstHeading")
@@ -66,6 +85,7 @@ class WikipediaScraper:
 
     @staticmethod
     def _clean_text(text: str) -> str:
+        """Normaliza el párrafo extraído."""
         return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip()
 
     @staticmethod
@@ -90,6 +110,7 @@ class WikipediaScraper:
             alternative_title = self._search_title()
             if not alternative_title:
                 raise ValueError(f"El artículo de Wikipedia para '{self.topic}' no existe.")
+            print(f"Aviso: No se encontró exactamente '{self.topic}'. Quizás querías decir: '{alternative_title}'")
             response = self._get_response(self._build_url(alternative_title))
             if response is None:
                 raise ValueError(f"El artículo de Wikipedia para '{self.topic}' no existe.")

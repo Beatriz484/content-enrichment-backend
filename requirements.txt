@@ -1,6 +1,3 @@
-# Single dependency file for the whole project (runtime + development).
-# Install everything with: pip install -r requirements.txt
-
 # Runtime
 beautifulsoup4==4.14.3
 deep-translator==1.11.4
@@ -12,5 +9,4 @@ requests==2.32.5
 # Development (tests, coverage and git hooks)
 pre-commit==4.6.2
 pytest==9.0.2
-pytest-bdd==9.0.0
 pytest-cov==7.0.0

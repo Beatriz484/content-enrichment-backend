@@ -1,6 +1,7 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
 import requests
-from unittest.mock import MagicMock, patch
 
 from src.scraper import SEARCH_API_URL, WikipediaScraper
 
@@ -35,12 +36,33 @@ def _mock_response(status_code=200, text="", json_data=None):
 
 @pytest.mark.parametrize("topic", ["", "   "])
 def test_constructor_rejects_empty_topic(topic):
+    r"""@failure
+
+    Scenario Outline: Reject a topic with nothing to look for
+        When I create the scraper for the topic <topic>
+        Then the error says that the topic cannot be empty
+
+        Examples:
+            | topic  |
+            | ""     |
+            | "   "  |
+    """
     with pytest.raises(ValueError, match="no puede estar vacío"):
         WikipediaScraper(topic)
 
 
 @patch("src.scraper.requests.get")
 def test_extract_content_returns_title_and_five_paragraphs(mock_get):
+    r"""@successful
+
+    Scenario: Extract the title and the first five paragraphs
+        Given the Wikipedia article "Python" with six paragraphs
+        When I extract the content for the topic "Python"
+        Then the title is "Python"
+        And exactly 5 paragraphs are returned
+        And the first paragraph is "Primer párrafo."
+        And Wikipedia is asked for "https://es.wikipedia.org/wiki/Python"
+    """
     mock_get.return_value = _mock_response(text=ARTICLE_HTML)
 
     result = WikipediaScraper("Python").extract_content()
@@ -53,6 +75,13 @@ def test_extract_content_returns_title_and_five_paragraphs(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_extract_content_missing_article_raises_value_error(mock_get):
+    r"""@failure
+
+    Scenario: Report an article that does not exist
+        Given Wikipedia answers 404 and the search returns nothing
+        When I extract the content for the topic "TemaFalsoQueNoExiste12345ABC"
+        Then the error says that the article does not exist
+    """
     mock_get.side_effect = [
         _mock_response(status_code=404),
         _mock_response(json_data={"query": {"search": []}}),
@@ -64,6 +93,17 @@ def test_extract_content_missing_article_raises_value_error(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_extract_content_uses_search_as_fallback(mock_get):
+    r"""@successful
+
+    Scenario: Fall back to the search API when the address does not resolve
+        Given Wikipedia answers 404 for the exact address
+        And the search API finds "Inteligencia artificial"
+        When I extract the content for the topic "inteligencia artificial"
+        Then the title is "Inteligencia artificial"
+        And exactly 5 paragraphs are returned
+        And the search API is consulted
+        And the article of the search result is then fetched
+    """
     mock_get.side_effect = [
         _mock_response(status_code=404),
         _mock_response(json_data={"query": {"search": [{"title": "Inteligencia artificial"}]}}),
@@ -81,6 +121,13 @@ def test_extract_content_uses_search_as_fallback(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_failed_fallback_search_raises_connection_error(mock_get):
+    r"""@failure
+
+    Scenario: Report a failed search fallback
+        Given Wikipedia answers 404 and the search API cannot be reached
+        When I extract the content for the topic "Python"
+        Then the error says that the connection failed
+    """
     mock_get.side_effect = [
         _mock_response(status_code=404),
         requests.exceptions.ConnectionError("sin internet"),
@@ -92,6 +139,13 @@ def test_failed_fallback_search_raises_connection_error(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_fallback_title_not_found_raises_value_error(mock_get):
+    r"""@failure
+
+    Scenario: Report a search result that leads to another missing article
+        Given Wikipedia answers 404 twice and the search finds "Otro artículo"
+        When I extract the content for the topic "Tema Falso"
+        Then the error says that the article does not exist
+    """
     mock_get.side_effect = [
         _mock_response(status_code=404),
         _mock_response(json_data={"query": {"search": [{"title": "Otro artículo"}]}}),
@@ -104,6 +158,13 @@ def test_fallback_title_not_found_raises_value_error(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_network_failure_raises_connection_error(mock_get):
+    r"""@failure
+
+    Scenario: Report a network failure
+        Given the request to Wikipedia cannot connect
+        When I extract the content for the topic "Python"
+        Then the error says that the connection failed
+    """
     mock_get.side_effect = requests.exceptions.ConnectionError("sin internet")
 
     with pytest.raises(ConnectionError, match="Error de conexión"):
@@ -112,7 +173,44 @@ def test_network_failure_raises_connection_error(mock_get):
 
 @patch("src.scraper.requests.get")
 def test_http_failure_raises_connection_error(mock_get):
+    r"""@failure
+
+    Scenario: Report an HTTP failure
+        Given Wikipedia answers with HTTP 500
+        When I extract the content for the topic "Python"
+        Then the error says that the connection failed
+    """
     mock_get.return_value = _mock_response(status_code=500)
 
     with pytest.raises(ConnectionError, match="Error de conexión"):
         WikipediaScraper("Python").extract_content()
+
+
+@pytest.mark.integration
+def test_extract_content_reads_a_live_wikipedia_article():
+    r"""@successful
+
+    Scenario: Read a real Wikipedia article end to end
+        Given the live Wikipedia article "Python (lenguaje de programación)"
+        When I extract the content for that topic
+        Then I get a dictionary with a non empty title
+        And the list of paragraphs contains exactly 5 elements
+    """
+    result = WikipediaScraper("Python (lenguaje de programación)").extract_content()
+
+    assert isinstance(result, dict)
+    assert len(result["title"]) > 0
+    assert len(result["paragraphs"]) == 5
+
+
+@pytest.mark.integration
+def test_extract_content_raises_for_a_live_missing_article():
+    r"""@failure
+
+    Scenario: Report a real article that Wikipedia does not have
+        Given the live Wikipedia has no article for "TemaFalsoQueNoExiste12345ABC"
+        When I extract the content for that topic
+        Then the error says that the article does not exist
+    """
+    with pytest.raises(ValueError, match="no existe"):
+        WikipediaScraper("TemaFalsoQueNoExiste12345ABC").extract_content()
