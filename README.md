@@ -476,3 +476,8 @@ MYMEMORY_EMAIL=tu_correo@example.com
 ## 🎓 Agradecimientos
 
 Agradecemos sinceramente a nuestra formadora **Manu Grajales** por su constante acompañamiento, orientación metodológica y paciencia infinita. Su capacidad para transformar dudas complejas y obstáculos técnicos en auténticas oportunidades de aprendizaje ha sido fundamental para el éxito y la madurez de este proyecto.
+
+<div align="center">
+  <br />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:050811,40:00e5ff,100:00ff66&height=170&section=footer&text=RAW2KNOW%20%7C%20CLI%20CLI%20LOGIC%20%E2%80%A2%202026&fontSize=18&fontColor=ffffff&fontAlignY=70" width="100%" alt="RAW2KNOW Dynamic Waves Footer" />
+</div>
