@@ -1,11 +1,30 @@
+<img width="3168" height="1344" alt="Gemini_Generated_Image_a3yfxza3yfxza3yf" src="https://github.com/user-attachments/assets/51bd4c10-5091-4742-8eea-8452dd0c484d" />
+
+
 <div align="center">
 
-  <!-- Banner con efecto typing dinámico en tonos cyberpunk (verde neón y negro) -->
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=28&duration=3000&pause=1000&color=00FF66&center=true&vCenter=true&width=750&height=90&lines=CONTENT+ENRICHER+-+BACKEND;Wikipedia+Scraping+%E2%86%92+AI+Enrichment;Smart+Translation+%E2%86%92+PDF%2FTXT+Export;Automated+Knowledge+Pipeline" alt="Content Enricher Dynamic Banner" />
+  <!-- Banner con efecto typing dinámico en estética Cyberpunk / Terminal -->
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=30&duration=2800&pause=900&color=00FF66&center=true&vCenter=true&width=820&height=100&lines=RAW2KNOW+%7C+CLI+CLI+LOGIC;De+Datos+en+Bruto+a+Conocimiento+Estructurado;5-Phase+Pipeline%3A+Wikipedia+%E2%86%92+AI+%E2%86%92+PDF%2FTXT;Automated+Knowledge+Enricher+%26+Synthesizer" alt="RAW2KNOW Dynamic Banner" />
 
   <p align="center">
-    <strong>Pipeline inteligente de extracción, enriquecimiento con IA y traducción multilingüe</strong>
+    <strong>⚡ Pipeline CLI inteligente de extracción, enriquecimiento neuronal, síntesis y exportación ejecutiva ⚡</strong>
   </p>
+
+  <!-- Badges de Pipeline de 5 Fases -->
+  <p align="center">
+    <img src="https://img.shields.io/badge/Phase_1-Wikipedia_Scraper-00FF66?style=for-the-badge&logo=wikipedia&logoColor=black" alt="Scraper" />
+    <img src="https://img.shields.io/badge/Phase_2-AI_Enrichment-00E5FF?style=for-the-badge&logo=openai&logoColor=black" alt="Enrichment" />
+    <img src="https://img.shields.io/badge/Phase_3-Smart_Synthesis-00FF66?style=for-the-badge&logo=probot&logoColor=black" alt="Synthesis" />
+    <img src="https://img.shields.io/badge/Phase_4-Deep_Translate-00E5FF?style=for-the-badge&logo=google-translate&logoColor=black" alt="Translator" />
+    <img src="https://img.shields.io/badge/Phase_5-Dual_Export_(PDF%2FTXT)-00FF66?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=black" alt="Exporter" />
+  </p>
+
+  
+
+</div>
+<div align="center">
+
+ 
 
   <!-- Badges dinámicas del stack tecnológico -->
   <p align="center">
@@ -46,52 +65,58 @@
 
 ```text
 content-enrichment-backend/
-├── main.py                         # Punto de entrada: se ejecuta con `python main.py`
-├── src/                            # Código fuente principal
+├── main.py                          # Punto de entrada interactivo único: se ejecuta con `python main.py`
+├── output/                          # Directorio de persistencia: informes generados (.pdf, .txt)
+├── logs/                            # Registro persistente de eventos y trazabilidad (app.log)
+├── src/                             # Código fuente principal modular
 │   ├── __init__.py
-│   ├── cli.py                      # Orquestación del flujo (main, pasos 1/5 a 5/5)
-│   ├── prompts.py                  # Diálogo con el usuario (entrada y muestra por consola)
-│   ├── pipeline.py                 # Etapas del proceso: Wikipedia, IA y traducción
-│   ├── errors.py                   # Errores controlados del dominio
-│   ├── logging_config.py           # Logging a consola y a logs/app.log
-│   ├── scraper.py                  # Extracción desde Wikipedia (con búsqueda de respaldo)
-│   ├── enricher.py                 # Enriquecimiento y resúmenes con IA
-│   ├── translation/                # Paquete de traducción (HU-05)
+│   ├── cli.py                       # Orquestación del flujo interactivo (main, pasos 1/5 a 5/5)
+│   ├── prompts.py                   # Diálogo con el usuario (entrada y muestra por consola)
+│   ├── pipeline.py                  # Etapas del proceso: Wikipedia, IA, resumen y traducción
+│   ├── errors.py                    # Errores controlados del dominio y fallbacks
+│   ├── logging_config.py            # Logging estructurado a consola y a logs/app.log
+│   ├── scraper.py                   # Extracción desde Wikipedia (con búsqueda de respaldo y desambiguación)
+│   ├── enricher.py                  # Enriquecimiento y resúmenes con IA
+│   ├── translation/                 # Paquete de traducción desacoplado (HU-05)
 │   │   ├── __init__.py
-│   │   ├── translator.py           # Traducción con deep-translator / MyMemory
-│   │   ├── language_validator.py   # Validación del idioma que escribe el usuario
-│   │   ├── text_splitter.py        # Troceado de textos largos para MyMemory
-│   │   └── translation_errors.py   # Errores controlados del servicio de traducción
-│   └── exporter/                   # Paquete de exportación (TXT / PDF)
-│       ├── document_exporter.py    # Orquestador de la exportación
-│       ├── validators.py           # Validación de entradas y saneo de nombres
-│       ├── pdf_fonts.py            # Fuente Unicode y preparación de texto del PDF
-│       ├── txt_exporter.py         # Generación de TXT (UTF-8 con BOM)
-│       └── pdf_exporter.py         # Generación de PDF (ReportLab)
-├── tests/                          # Suite de pruebas (Gherkin embebido en cada test)
+│   │   ├── translator.py            # Traducción con deep-translator / MyMemory
+│   │   ├── language_validator.py    # Validación y normalización del idioma ingresado
+│   │   ├── text_splitter.py         # Troceado inteligente de textos largos para evitar límites
+│   │   └── translation_errors.py    # Excepciones controladas del servicio de traducción
+│   └── exporter/                    # Paquete de exportación documental (TXT / PDF)
+│       ├── __init__.py
+│       ├── document_exporter.py     # Orquestador del guardado y selección de formato
+│       ├── plain_text.py            # Parser y limpiador de sintaxis Markdown a texto plano legible
+│       ├── validators.py            # Validación de entradas y sanitización de nombres de archivo
+│       ├── pdf_fonts.py             # Registro de tipografías con soporte Unicode y saneo de texto
+│       ├── txt_exporter.py          # Generación de TXT limpio (UTF-8 con BOM / utf-8-sig)
+│       └── pdf_exporter.py          # Generación y maquetación de PDF ejecutivo (ReportLab)
+├── tests/                           # Suite de pruebas automatizadas (Gherkin embebido en cada test)
 │   ├── test_exporter/
 │   │   ├── __init__.py
-│   │   ├── test_document_exporter.py   # Orquestación y errores controlados
-│   │   ├── test_pdf_exporter.py        # Exportación exclusiva a PDF
-│   │   ├── test_pdf_fonts.py           # Fuente Unicode y saneo de texto
-│   │   ├── test_txt_exporter.py        # Exportación exclusiva a TXT (UTF-8 con BOM)
-│   │   └── test_validators.py          # Validación de nombre, formato y contenido
+│   │   ├── test_document_exporter.py    # Orquestación y errores controlados
+│   │   ├── test_pdf_exporter.py         # Exportación exclusiva a PDF
+│   │   ├── test_pdf_fonts.py            # Fuente Unicode y saneo de texto
+│   │   ├── test_txt_exporter.py         # Exportación exclusiva a TXT (UTF-8 con BOM)
+│   │   └── test_validators.py           # Validación de nombre, formato y contenido
 │   ├── test_translation/
 │   │   ├── __init__.py
 │   │   ├── test_deep_translate_service.py  # Traducción y errores de MyMemory
 │   │   ├── test_language_validator.py      # Idiomas válidos, inválidos e intentos
 │   │   ├── test_text_splitter.py           # Troceado de textos largos
 │   │   └── test_translator.py              # Contrato del traductor
-│   ├── test_cli.py                 # Flujo completo de la CLI (sin red ni IA real)
-│   ├── test_enricher.py            # Enriquecimiento y resúmenes con IA
-│   ├── test_logging_config.py      # Archivo de log y configuración
-│   ├── test_pipeline.py            # Etapas del proceso
-│   ├── test_prompts.py             # Diálogo con el usuario
-│   └── test_scraper.py             # Wikipedia con mock + 2 escenarios en vivo
-├── .pre-commit-config.yaml
-├── requirements.txt                # Dependencias de ejecución y desarrollo
-├── pytest.ini                      # Rutas, marcadores y selección por defecto
-└── README.md
+│   ├── test_cli.py                  # Flujo completo de la CLI (sin red ni IA real)
+│   ├── test_enricher.py             # Enriquecimiento y resúmenes con IA
+│   ├── test_logging_config.py       # Archivo de log y configuración
+│   ├── test_pipeline.py             # Etapas del proceso
+│   ├── test_prompts.py              # Diálogo con el usuario
+│   └── test_scraper.py              # Wikipedia con mock + escenarios en vivo
+├── .env                             # Variables de entorno (API keys y endpoints protegidos)
+├── .gitignore                       # Exclusión de entornos, cachés, artefactos IDE (.iml) y logs
+├── .pre-commit-config.yaml          # Validación automática de Conventional Commits
+├── requirements.txt                 # Dependencias de ejecución y desarrollo
+├── pytest.ini                       # Configuración de pruebas, rutas y marcadores
+└── README.md                        # Documentación técnica completa del proyecto
 ```
 
 ## ⚙️ Instalación y Configuración Local
@@ -376,6 +401,9 @@ MYMEMORY_EMAIL=tu_correo@example.com
 | El PDF sale con caracteres raros | Fuente sin cobertura Unicode | Resuelto: `src/exporter/pdf_fonts.py` registra una TTF del sistema |
 | El TXT se abre con tildes rotas en Windows | Falta el BOM UTF-8 | Resuelto: se escribe con `utf-8-sig` |
 | "Traducción omitida" | Cuota diaria de MyMemory agotada (5.000 caracteres/día) | Espera a que se reinicie o añade `MYMEMORY_EMAIL` en `.env` (50.000/día) |
+| El archivo TXT muestra marcas Markdown (`###`, `*`, `|`) | La IA entrega contenido estructurado con formato enriquecido | Resuelto: `src/exporter/plain_text.py` normaliza tablas y remueve etiquetas conservando sangrías |
+| Conflictos en Git por archivos de entorno local (`.iml`, `.idea/`) | Ficheros generados automáticamente por el IDE (IntelliJ / PyCharm) | Resuelto: Inclusión en `.gitignore` y purga del índice local mediante `git rm --cached` |
+| Interrupción abrupta de la terminal (`Ctrl + C`) | Parada manual no controlada | Resuelto: Captura controlada de `KeyboardInterrupt` con salida limpia y sin volcados de pila (tracebacks) |
 
 ## 👥 Equipo de Desarrollo
 
@@ -443,3 +471,8 @@ MYMEMORY_EMAIL=tu_correo@example.com
 </table>
 
 </div>
+
+
+## 🎓 Agradecimientos
+
+Agradecemos sinceramente a nuestra formadora **Manu Grajales** por su constante acompañamiento, orientación metodológica y paciencia infinita. Su capacidad para transformar dudas complejas y obstáculos técnicos en auténticas oportunidades de aprendizaje ha sido fundamental para el éxito y la madurez de este proyecto.
